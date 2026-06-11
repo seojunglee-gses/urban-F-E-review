@@ -426,11 +426,25 @@ export const buildMockTopicModel = (
     },
   ];
 
+  const recordIds = records.map((record) => record.id);
+  const populatedClusters = clusters.map((cluster, clusterIndex) => ({
+    ...cluster,
+    representativeRecordIds:
+      cluster.representativeRecordIds.length > 0
+        ? cluster.representativeRecordIds
+        : recordIds
+            .filter(
+              (_, recordIndex) =>
+                recordIndex % clusters.length === clusterIndex,
+            )
+            .slice(0, 6),
+  }));
+
   return {
     id: `topic-model-${Date.now()}`,
     createdAt: now(),
     sourceRecordCount: records.length,
-    clusters: clusters.filter(
+    clusters: populatedClusters.filter(
       (cluster) => cluster.representativeRecordIds.length > 0,
     ),
     warnings: records.some((record) => record.abstract.length < 120)
@@ -765,5 +779,252 @@ export const buildMockClassifications = (
         record.abstract.length > 180
           ? []
           : ["Short abstract limits classification certainty."],
+    };
+  });
+
+const demoCityScenarios = [
+  {
+    city: "London",
+    country: "United Kingdom",
+    focus: "local climate zones and residential electricity",
+    form: "LCZ / 3D morphology",
+    energy: "building-electricity",
+  },
+  {
+    city: "New York",
+    country: "United States",
+    focus: "density, transit access and transport energy",
+    form: "Density / compactness",
+    energy: "transport-energy",
+  },
+  {
+    city: "Seoul",
+    country: "South Korea",
+    focus: "urban canyon geometry and cooling demand",
+    form: "Urban canyon",
+    energy: "building-cooling",
+  },
+  {
+    city: "Tokyo",
+    country: "Japan",
+    focus: "albedo interventions and building electricity",
+    form: "Albedo / surface materials",
+    energy: "building-electricity",
+  },
+  {
+    city: "Beijing",
+    country: "China",
+    focus: "compact form and heat-island mediated cooling",
+    form: "Compact morphology",
+    energy: "microclimate-mediated-energy",
+  },
+  {
+    city: "Shanghai",
+    country: "China",
+    focus: "high-rise morphology and peak cooling",
+    form: "3D morphology",
+    energy: "building-cooling",
+  },
+  {
+    city: "Singapore",
+    country: "Singapore",
+    focus: "urban meteorology inputs for tropical building models",
+    form: "Compact high-rise",
+    energy: "building-cooling",
+  },
+  {
+    city: "Paris",
+    country: "France",
+    focus: "street orientation and district heating/cooling tradeoffs",
+    form: "Street layout",
+    energy: "building-heating",
+  },
+  {
+    city: "Berlin",
+    country: "Germany",
+    focus: "LCZ classes and electricity consumption",
+    form: "Local climate zones",
+    energy: "building-electricity",
+  },
+  {
+    city: "Toronto",
+    country: "Canada",
+    focus: "compactness and household transport energy",
+    form: "Land-use mix",
+    energy: "transport-energy",
+  },
+  {
+    city: "Los Angeles",
+    country: "United States",
+    focus: "sprawl and transport-energy emissions",
+    form: "Sprawl",
+    energy: "emissions",
+  },
+  {
+    city: "Sydney",
+    country: "Australia",
+    focus: "tree canopy and summer cooling peaks",
+    form: "Green infrastructure",
+    energy: "building-cooling",
+  },
+  {
+    city: "Melbourne",
+    country: "Australia",
+    focus: "urban greenery and building cooling demand",
+    form: "Green infrastructure",
+    energy: "building-cooling",
+  },
+  {
+    city: "Hong Kong",
+    country: "China",
+    focus: "sky view factor and residential cooling electricity",
+    form: "Urban canyon",
+    energy: "building-cooling",
+  },
+  {
+    city: "Barcelona",
+    country: "Spain",
+    focus: "green infrastructure and cooling electricity",
+    form: "Green infrastructure",
+    energy: "building-cooling",
+  },
+  {
+    city: "Milan",
+    country: "Italy",
+    focus: "compact blocks and heating demand",
+    form: "Compact blocks",
+    energy: "building-heating",
+  },
+  {
+    city: "Amsterdam",
+    country: "Netherlands",
+    focus: "cycling urban form and transport energy",
+    form: "Street network",
+    energy: "transport-energy",
+  },
+  {
+    city: "Chicago",
+    country: "United States",
+    focus: "density and household utility electricity",
+    form: "Density / compactness",
+    energy: "building-electricity",
+  },
+  {
+    city: "Boston",
+    country: "United States",
+    focus: "building geometry and heating load",
+    form: "Building geometry",
+    energy: "building-heating",
+  },
+  {
+    city: "San Francisco",
+    country: "United States",
+    focus: "urban form, microclimate and electricity use",
+    form: "Coastal morphology",
+    energy: "building-electricity",
+  },
+  {
+    city: "Vancouver",
+    country: "Canada",
+    focus: "compact neighborhoods and total urban energy",
+    form: "Compact neighborhoods",
+    energy: "total-urban-energy",
+  },
+  {
+    city: "Stockholm",
+    country: "Sweden",
+    focus: "3D city models and winter heating",
+    form: "3D morphology",
+    energy: "building-heating",
+  },
+  {
+    city: "Helsinki",
+    country: "Finland",
+    focus: "cold-climate building geometry and heating",
+    form: "Building geometry",
+    energy: "building-heating",
+  },
+  {
+    city: "Mumbai",
+    country: "India",
+    focus: "urban meteorology and cooling demand",
+    form: "Urban meteorology",
+    energy: "building-cooling",
+  },
+  {
+    city: "São Paulo",
+    country: "Brazil",
+    focus: "tree canopy, density and utility bills",
+    form: "Tree canopy",
+    energy: "building-electricity",
+  },
+  {
+    city: "Phoenix",
+    country: "United States",
+    focus: "impervious cover and electricity peaks",
+    form: "Land cover",
+    energy: "building-cooling",
+  },
+  {
+    city: "Cape Town",
+    country: "South Africa",
+    focus: "informal settlement form and cooling access",
+    form: "Informal settlement morphology",
+    energy: "microclimate-mediated-energy",
+  },
+  {
+    city: "Shanghai",
+    country: "China",
+    focus: "LCZ and cooling energy simulations",
+    form: "Local climate zones",
+    energy: "building-cooling",
+  },
+  {
+    city: "London",
+    country: "United Kingdom",
+    focus: "urban heat island and electricity demand",
+    form: "Urban heat island",
+    energy: "building-electricity",
+  },
+  {
+    city: "Singapore",
+    country: "Singapore",
+    focus: "green-blue infrastructure and cooling demand",
+    form: "Green-blue infrastructure",
+    energy: "building-cooling",
+  },
+];
+
+export const buildDemoBibliographicRecords = (): BibliographicRecord[] =>
+  demoCityScenarios.map((scenario, index) => {
+    const base =
+      mockBibliographicRecords[index % mockBibliographicRecords.length];
+    const year = 2010 + (index % 16);
+    const id = `WOS-DEMO-${String(index + 1).padStart(3, "0")}`;
+    return {
+      ...base,
+      id,
+      uid: `WOS:DEMO-${String(index + 1).padStart(3, "0")}`,
+      title: `${scenario.city} evidence on ${scenario.focus}`,
+      year,
+      doi: `10.0000/demo.${String(index + 1).padStart(3, "0")}`,
+      abstract: `This abstract-based study examines ${scenario.focus} in ${scenario.city}. It links ${scenario.form.toLowerCase()} to ${scenario.energy.replace(/-/g, " ")} using urban form indicators, energy observations or simulation outputs. The paper reports context-dependent planning implications for reducing energy demand while managing urban climate exposure in ${scenario.city}. ${base.abstract}`,
+      authorKeywords: [
+        scenario.form,
+        scenario.energy,
+        scenario.city,
+        "urban form",
+        "energy",
+      ],
+      keywordsPlus: [...base.keywordsPlus, scenario.focus],
+      sourceDatabase: "Web of Science Demo",
+      affiliations: [
+        `Demo Urban Energy Lab, ${scenario.city}, ${scenario.country}`,
+      ],
+      countries: [scenario.country],
+      raw: {
+        uid: `WOS:DEMO-${String(index + 1).padStart(3, "0")}`,
+        demo: true,
+      },
     };
   });

@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from "next";
 
 import { defaultWosSearchConfig } from "../../../src/lib/config/searchConfig";
-import { mockBibliographicRecords } from "../../../src/lib/mock/mockLiterature";
+import { buildDemoBibliographicRecords } from "../../../src/lib/mock/mockLiterature";
 import {
   apiErrorResponseSchema,
   bibliographicRecordSchema,
@@ -83,10 +83,11 @@ export default async function handler(
     process.env.MOCK_WOS === "true" && process.env.NODE_ENV !== "production";
 
   if (mockMode) {
-    const records = mockBibliographicRecords.slice(0, config.count);
+    const demoRecords = buildDemoBibliographicRecords();
+    const records = demoRecords.slice(0, config.count);
     response.status(200).json({
       records,
-      total: mockBibliographicRecords.length,
+      total: demoRecords.length,
       query: config.query,
       warnings: [
         "Mock data mode is active. Set MOCK_WOS=false and provide WOS_API_KEY for live retrieval.",

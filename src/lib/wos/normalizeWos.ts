@@ -42,7 +42,10 @@ const cityHints = [
   "Hong Kong",
   "London",
   "New York",
+  "Los Angeles",
+  "San Francisco",
   "Chicago",
+  "Boston",
   "Toronto",
   "Vancouver",
   "Berlin",
@@ -60,6 +63,9 @@ const cityHints = [
   "São Paulo",
   "Amsterdam",
   "Stockholm",
+  "Helsinki",
+  "Phoenix",
+  "Cape Town",
 ];
 
 const asRecord = (value: unknown): Record<string, unknown> =>

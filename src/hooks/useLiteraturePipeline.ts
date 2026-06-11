@@ -4,6 +4,12 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { defaultWosSearchConfig } from "../lib/config/searchConfig";
 import { buildEvidenceMap } from "../lib/evidence/buildEvidenceMap";
+import {
+  buildDemoBibliographicRecords,
+  buildMockClassifications,
+  buildMockCodebook,
+  buildMockTopicModel,
+} from "../lib/mock/mockLiterature";
 import { normalizeBibliographicRecords } from "../lib/wos/normalizeWos";
 import type {
   ApiErrorResponse,
@@ -293,6 +299,42 @@ export const useLiteraturePipeline = () => {
     updateStage,
   ]);
 
+  const runDemo = useCallback(() => {
+    const records = buildDemoBibliographicRecords();
+    const normalizedRecords = normalizeBibliographicRecords(records);
+    const topicModel = buildMockTopicModel(normalizedRecords);
+    const codebook = buildMockCodebook(topicModel, normalizedRecords.length);
+    const classifications = buildMockClassifications(normalizedRecords);
+    const evidenceMap = buildEvidenceMap({
+      records: normalizedRecords,
+      topicClusters: topicModel.clusters,
+      codebook,
+      classifications,
+    });
+
+    setState((current) => ({
+      ...current,
+      records,
+      normalizedRecords,
+      topicModel,
+      codebook,
+      classifications,
+      evidenceMap,
+      mockWos: true,
+      mockLlm: true,
+      apiKeyDetected: Boolean(current.apiKeyDetected),
+      warnings: [
+        "Demo mode is active. These records are deterministic mock records, not live Web of Science results.",
+      ],
+    }));
+    updateStage("retrieve", "success", records.length);
+    updateStage("normalize", "success", normalizedRecords.length);
+    updateStage("topics", "success", topicModel.clusters.length);
+    updateStage("codebook", "success", codebook.dimensions.length);
+    updateStage("classify", "success", classifications.length);
+    updateStage("map", "success", evidenceMap.evidenceMatrix.length);
+  }, [updateStage]);
+
   const resetPipeline = useCallback(() => {
     setState(initialState);
     setRunState(initialRunState);
@@ -328,6 +370,7 @@ export const useLiteraturePipeline = () => {
     runTopicModeling,
     generateCodebook,
     classifyRecords,
+    runDemo,
     resetPipeline,
     importExistingJson,
   };
