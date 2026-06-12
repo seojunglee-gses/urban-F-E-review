@@ -19,11 +19,20 @@ type IncomeGroupRow = {
 const VALID_INCOME_GROUPS: IncomeGroup[] = ["Low income", "Lower middle income", "Upper middle income", "High income", "Unknown"];
 const DISPLAY_INCOME_GROUPS: IncomeGroup[] = ["High income", "Upper middle income", "Lower middle income", "Low income", "Unknown"];
 
-const typedRows: IncomeGroupRow[] = (incomeGroupRows as Array<{ country: string; incomeGroup: string }>).flatMap((row) =>
-  VALID_INCOME_GROUPS.includes(row.incomeGroup as IncomeGroup) && row.incomeGroup !== "Unknown"
-    ? [{ country: row.country, incomeGroup: row.incomeGroup as IncomeGroup }]
-    : [],
-);
+type RawIncomeGroupRow = {
+  country: string;
+  "Income group": string | null;
+};
+
+const typedRows: IncomeGroupRow[] = (incomeGroupRows as RawIncomeGroupRow[]).flatMap((row) => {
+  const incomeGroup = row["Income group"];
+
+  return incomeGroup &&
+    VALID_INCOME_GROUPS.includes(incomeGroup as IncomeGroup) &&
+    incomeGroup !== "Unknown"
+    ? [{ country: row.country, incomeGroup: incomeGroup as IncomeGroup }]
+    : [];
+});
 
 const normalizeCountry = (country: string): string =>
   country
