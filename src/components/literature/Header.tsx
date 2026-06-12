@@ -1,49 +1,26 @@
-import type { LiteraturePipelineController } from "../../hooks/useLiteraturePipeline";
-import { badgeClass, descriptionClass } from "./dashboardShared";
+import { BookOpen, Database, Sparkles } from "lucide-react";
 
-const StatusBadge = ({
-  children,
-  tone = "slate",
-}: {
-  children: string;
-  tone?: "slate" | "amber";
-}) => (
-  <span
-    className={`rounded-full border px-3 py-1 text-xs font-semibold ${
-      tone === "amber"
-        ? "border-amber-200 bg-amber-50 text-amber-800"
-        : "border-slate-200 bg-white text-slate-600"
-    }`}
-  >
-    {children}
-  </span>
-);
+import type { ReviewRunResponse } from "../../types/review";
+import { badgeText, descriptionText } from "./dashboardShared";
 
-export function Header({
-  pipeline,
-}: {
-  pipeline: LiteraturePipelineController;
-}) {
-  const isMock = pipeline.mockWos || pipeline.mockLlm;
+interface HeaderProps {
+  result: ReviewRunResponse | null;
+}
+
+export const Header = ({ result }: HeaderProps) => {
+  const llmReady = result ? result.status.codebook === "success" : false;
   return (
-    <header className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+    <header className="flex flex-col gap-4 rounded-3xl border border-[var(--border)] bg-white px-5 py-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
       <div>
-        <p className={badgeClass}>Research dashboard</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
-          Urban Form & Energy Evidence Map
-        </h1>
-        <p className={`mt-2 ${descriptionClass}`}>
-          Search literature, map city-level evidence, and identify research
-          gaps.
-        </p>
+        <p className={badgeText}>OpenAlex systematic review</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Urban Form &amp; Energy Evidence Map</h1>
+        <p className={`${descriptionText} mt-1`}>Enter one topic or research question, then automatically search, code, summarize, and map the evidence.</p>
       </div>
-      <div className="flex flex-wrap gap-2">
-        <StatusBadge tone={isMock ? "amber" : "slate"}>
-          {isMock ? "Mock data" : "Live WoS"}
-        </StatusBadge>
-        <StatusBadge>{`${pipeline.records.length} records`}</StatusBadge>
-        <StatusBadge>{`${pipeline.classifications.length} classified`}</StatusBadge>
+      <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-600">
+        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1"><Database className="h-3.5 w-3.5" />OpenAlex</span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1"><BookOpen className="h-3.5 w-3.5" />{result?.papers.length ?? 0} papers</span>
+        <span className="inline-flex items-center gap-1 rounded-full border border-slate-200 bg-slate-50 px-3 py-1"><Sparkles className="h-3.5 w-3.5" />{llmReady ? "LLM coded" : "LLM optional"}</span>
       </div>
     </header>
   );
-}
+};

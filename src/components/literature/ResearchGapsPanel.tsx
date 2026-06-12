@@ -1,47 +1,29 @@
-import { ListFilter } from "lucide-react";
+import type { GapMapItem } from "../../types/review";
+import { descriptionText, innerPanel, majorCard, titleText } from "./dashboardShared";
 
-import type { LiteraturePipelineController } from "../../hooks/useLiteraturePipeline";
-import { innerClass } from "./dashboardShared";
-
-export function ResearchGapsPanel({
-  pipeline,
-  limit,
-  compact = false,
-}: {
-  pipeline: LiteraturePipelineController;
-  limit?: number;
+interface ResearchGapsPanelProps {
+  gaps: GapMapItem[];
   compact?: boolean;
-}) {
-  const gaps = pipeline.evidenceMap?.researchGaps ?? [];
-  const visibleGaps = limit ? gaps.slice(0, limit) : gaps;
+}
 
+export const ResearchGapsPanel = ({ gaps, compact = false }: ResearchGapsPanelProps) => {
+  const visible = gaps.slice(0, compact ? 5 : 20);
   return (
-    <section className={innerClass}>
-      <div className="flex items-center gap-2">
-        <ListFilter className="h-4 w-4 text-slate-500" />
-        <h3 className="text-sm font-semibold text-slate-800">
-          {compact ? "Main research gaps" : "Research gaps"}
-        </h3>
-      </div>
-      <div className="mt-3 grid gap-2 md:grid-cols-2">
-        {visibleGaps.length === 0 ? (
-          <p className="text-sm text-slate-500">
-            Run demo or classify records to compute gap statements.
-          </p>
-        ) : (
-          visibleGaps.map((gap) => (
-            <div
-              key={gap.id}
-              className="rounded-xl border border-slate-200 bg-white p-3 text-sm text-slate-600"
-            >
-              <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-                {gap.severity}
-              </span>
-              <p className="mt-1 leading-5">{gap.statement}</p>
+    <section className={compact ? majorCard : "space-y-4"}>
+      <h2 className={titleText}>Research gaps</h2>
+      {visible.length ? (
+        <div className="mt-4 space-y-3">
+          {visible.map((gap) => (
+            <div className={innerPanel} key={`${gap.dimensionA}-${gap.valueA}-${gap.dimensionB}-${gap.valueB}`}>
+              <p className="text-sm font-semibold text-slate-800">{gap.valueA} × {gap.valueB}</p>
+              <p className="mt-1 text-sm text-slate-500">{gap.paperCount} papers · {gap.gapType}</p>
+              {!compact ? <p className="mt-2 text-sm text-slate-600">{gap.recommendation}</p> : null}
             </div>
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      ) : (
+        <p className={`${descriptionText} mt-3`}>Gap statements appear after papers are coded. If the OpenAI key is missing, search and map still work but coded gaps are unavailable.</p>
+      )}
     </section>
   );
-}
+};

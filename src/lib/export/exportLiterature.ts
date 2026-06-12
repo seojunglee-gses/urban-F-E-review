@@ -1,7 +1,5 @@
-import type {
-  LLMClassification,
-  NormalizedAbstractRecord,
-} from "../../types/literature";
+import type { CodedPaper, Paper } from "../../types/review";
+import type { LLMClassification, NormalizedAbstractRecord } from "../../types/literature";
 
 const escapeCsvCell = (value: string | number | null | undefined): string => {
   const text = String(value ?? "");
@@ -82,6 +80,53 @@ export const validationSampleToCsv = (
 ): string => {
   const sampleSize = Math.max(1, Math.ceil(classifications.length * 0.1));
   return classificationsToCsv(classifications.slice(0, sampleSize), records);
+};
+
+export const codedPapersToCsv = (codedPapers: CodedPaper[], papers: Paper[]): string => {
+  const paperById = new Map(papers.map((paper) => [paper.id, paper]));
+  const headers = [
+    "paperId",
+    "title",
+    "year",
+    "doi",
+    "country",
+    "urbanFormVariables",
+    "energyOutcomes",
+    "method",
+    "spatialScale",
+    "climateContext",
+    "buildingType",
+    "keyFinding",
+    "evidenceStrength",
+    "confidence",
+    "needsManualReview",
+  ];
+  const rows = codedPapers.map((codedPaper) => {
+    const paper = paperById.get(codedPaper.paperId);
+    return [
+      codedPaper.paperId,
+      paper?.title ?? "",
+      paper?.year ?? "",
+      paper?.doi ?? "",
+      codedPaper.codes.country,
+      codedPaper.codes.urbanFormVariables.join("; "),
+      codedPaper.codes.energyOutcomes.join("; "),
+      codedPaper.codes.method,
+      codedPaper.codes.spatialScale,
+      codedPaper.codes.climateContext,
+      codedPaper.codes.buildingType,
+      codedPaper.codes.keyFinding,
+      codedPaper.codes.evidenceStrength,
+      codedPaper.confidence.toFixed(2),
+      codedPaper.needsManualReview ? "true" : "false",
+    ];
+  });
+  return [headers, ...rows].map((row) => row.map(escapeCsvCell).join(",")).join("\n");
+};
+
+export const validationSampleToReviewCsv = (codedPapers: CodedPaper[], papers: Paper[]): string => {
+  const sampleSize = Math.max(1, Math.ceil(codedPapers.length * 0.1));
+  return codedPapersToCsv(codedPapers.slice(0, sampleSize), papers);
 };
 
 export const parseImportedJson = (content: string): unknown =>

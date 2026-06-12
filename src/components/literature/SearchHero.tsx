@@ -1,203 +1,81 @@
-import { ChevronDown, PlayCircle, RotateCcw, Search } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Search, SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
 
-import type { LiteraturePipelineController } from "../../hooks/useLiteraturePipeline";
-import type { WosSearchConfig } from "../../types/literature";
-import {
-  cardClass,
-  descriptionClass,
-  inputClass,
-  primaryButtonClass,
-  secondaryButtonClass,
-} from "./dashboardShared";
+import type { ReviewProgressStep } from "../../hooks/useReviewPipeline";
+import { badgeText, descriptionText, innerPanel, majorCard, primaryButton, secondaryButton } from "./dashboardShared";
 
-const readableQuery = (query: string): string =>
-  query
-    .replace(/^TS=\(/, "")
-    .replace(/\)\s+AND\s+LA=\(English\)$/i, "")
-    .trim();
+interface SearchHeroProps {
+  query: string;
+  setQuery: (value: string) => void;
+  researchQuestion: string;
+  setResearchQuestion: (value: string) => void;
+  maxResults: number;
+  setMaxResults: (value: number) => void;
+  isRunning: boolean;
+  error: string | null;
+  steps: ReviewProgressStep[];
+  onRun: () => void;
+  onReset: () => void;
+}
 
-const toWosQuery = (query: string): string => {
-  const trimmed = query.trim();
-  if (trimmed.startsWith("TS=")) return trimmed;
-  return `TS=(${trimmed}) AND LA=(English)`;
+const stepClasses: Record<ReviewProgressStep["status"], string> = {
+  idle: "border-slate-200 bg-white text-slate-400",
+  running: "border-amber-200 bg-amber-50 text-amber-700",
+  complete: "border-emerald-200 bg-emerald-50 text-emerald-700",
+  error: "border-rose-200 bg-rose-50 text-rose-700",
 };
 
-export function SearchHero({
-  pipeline,
-}: {
-  pipeline: LiteraturePipelineController;
-}) {
-  const [draft, setDraft] = useState<WosSearchConfig>(pipeline.searchConfig);
-  const [queryText, setQueryText] = useState(
-    readableQuery(pipeline.searchConfig.query),
-  );
+export const SearchHero = ({ query, setQuery, researchQuestion, setResearchQuestion, maxResults, setMaxResults, isRunning, error, steps, onRun, onReset }: SearchHeroProps) => {
   const [advancedOpen, setAdvancedOpen] = useState(false);
-
-  useEffect(() => {
-    setDraft(pipeline.searchConfig);
-    setQueryText(readableQuery(pipeline.searchConfig.query));
-  }, [pipeline.searchConfig]);
-
-  const missingKey =
-    pipeline.apiKeyDetected === false ||
-    pipeline.runState.retrieve.error?.includes("Missing WOS_API_KEY");
-  const isSearching = pipeline.runState.retrieve.status === "running";
-  const canShowDemoHint = useMemo(
-    () => pipeline.records.length === 0,
-    [pipeline.records.length],
-  );
-
-  const updateDraft = <TKey extends keyof WosSearchConfig>(
-    key: TKey,
-    value: WosSearchConfig[TKey],
-  ): void => {
-    const next = { ...draft, [key]: value };
-    setDraft(next);
-    pipeline.setSearchConfig(next);
-  };
-
-  const updateQuery = (value: string): void => {
-    setQueryText(value);
-    updateDraft("query", toWosQuery(value));
-  };
-
   return (
-    <section className={cardClass}>
+    <section className={`${majorCard} space-y-4`}>
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-        <div className="min-w-0 flex-1">
-          <label className="block">
-            <span className="mb-2 block text-sm font-semibold text-slate-700">
-              Search keywords
-            </span>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
-              <input
-                className={`${inputClass} h-12 pl-11 text-base`}
-                value={queryText}
-                onChange={(event) => updateQuery(event.target.value)}
-                placeholder='("urban form" AND energy) OR ("urban heat island" AND energy)'
-              />
-            </div>
-          </label>
-        </div>
-        <div className="grid grid-cols-3 gap-2 sm:w-[310px]">
-          <CompactNumber
-            label="From"
-            value={draft.yearStart}
-            onChange={(value) => updateDraft("yearStart", value)}
-          />
-          <CompactNumber
-            label="To"
-            value={draft.yearEnd}
-            onChange={(value) => updateDraft("yearEnd", value)}
-          />
-          <CompactNumber
-            label="Max"
-            value={draft.count}
-            onChange={(value) => updateDraft("count", value)}
-          />
-        </div>
-        <div className="flex flex-wrap gap-2 lg:justify-end">
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={pipeline.runSearch}
-            disabled={isSearching}
-          >
-            <Search className="h-4 w-4" /> Search Web of Science
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={pipeline.runDemo}
-          >
-            <PlayCircle className="h-3.5 w-3.5" /> Run demo
-          </button>
-          <button
-            type="button"
-            className={secondaryButtonClass}
-            onClick={pipeline.resetPipeline}
-          >
-            <RotateCcw className="h-3.5 w-3.5" /> Reset
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="min-h-5">
-          {missingKey ? (
-            <p className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-              Live Web of Science key is missing. Use demo mode or add
-              WOS_API_KEY.
-            </p>
-          ) : canShowDemoHint ? (
-            <p className={descriptionClass}>
-              Run a live search or start with demo data.
-            </p>
-          ) : null}
-        </div>
-        <button
-          type="button"
-          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 hover:text-slate-800"
-          onClick={() => setAdvancedOpen((current) => !current)}
-        >
-          Advanced settings{" "}
-          <ChevronDown
-            className={`h-3.5 w-3.5 transition ${advancedOpen ? "rotate-180" : ""}`}
-          />
+        <label className="flex-1">
+          <span className={badgeText}>Research topic or question</span>
+          <div className="mt-2 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 focus-within:border-[var(--primary)] focus-within:bg-white">
+            <Search className="h-5 w-5 text-slate-400" />
+            <input
+              className="min-w-0 flex-1 bg-transparent text-base font-medium text-slate-900 outline-none placeholder:text-slate-400"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder="urban form and building energy consumption"
+            />
+          </div>
+        </label>
+        <button className={primaryButton} disabled={isRunning || query.trim().length < 2} onClick={onRun} type="button">
+          {isRunning ? "Running review…" : "Run Review"}
         </button>
       </div>
 
-      {advancedOpen && (
-        <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
-            Raw WoS query
-          </p>
-          <textarea
-            className="mt-2 min-h-24 w-full rounded-2xl border border-slate-200 bg-white p-3 text-xs text-slate-600 outline-none focus:border-[var(--primary)]"
-            value={draft.query}
-            onChange={(event) => updateDraft("query", event.target.value)}
-          />
-          <div className="mt-2 flex flex-wrap gap-2 text-xs text-slate-500">
-            <span>Language: English</span>
-            <span>·</span>
-            <span>Source types: articles/reviews where available</span>
-            <span>·</span>
-            <span>Abstract-based screening</span>
-          </div>
-        </div>
-      )}
+      <div className="flex flex-wrap gap-2">
+        {steps.map((step) => (
+          <span key={step.label} className={`rounded-full border px-3 py-1 text-xs font-semibold ${stepClasses[step.status]}`}>{step.label}</span>
+        ))}
+      </div>
 
-      {pipeline.runState.retrieve.error && (
-        <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
-          {pipeline.runState.retrieve.error}
-        </div>
-      )}
+      {error ? <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">{error}</div> : null}
+
+      <div>
+        <button className="inline-flex items-center gap-2 text-xs font-semibold text-slate-500 hover:text-slate-800" onClick={() => setAdvancedOpen((open) => !open)} type="button">
+          <SlidersHorizontal className="h-4 w-4" /> Advanced settings
+        </button>
+        {advancedOpen ? (
+          <div className={`${innerPanel} mt-3 grid gap-3 md:grid-cols-[1fr_160px]`}>
+            <label>
+              <span className="text-xs font-semibold text-slate-500">Research question used for coding</span>
+              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]" value={researchQuestion} onChange={(event) => setResearchQuestion(event.target.value)} />
+            </label>
+            <label>
+              <span className="text-xs font-semibold text-slate-500">Max papers</span>
+              <input className="mt-1 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-[var(--primary)]" min={1} max={200} type="number" value={maxResults} onChange={(event) => setMaxResults(Number(event.target.value))} />
+            </label>
+            <div className="flex items-center justify-between gap-3 md:col-span-2">
+              <p className={descriptionText}>Default provider is OpenAlex. Web of Science is not required; OpenAI is only needed for codebook generation and automatic coding.</p>
+              <button className={secondaryButton} disabled={isRunning} onClick={onReset} type="button">Reset</button>
+            </div>
+          </div>
+        ) : null}
+      </div>
     </section>
   );
-}
-
-function CompactNumber({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-}) {
-  return (
-    <label className="block">
-      <span className="mb-1 block text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-400">
-        {label}
-      </span>
-      <input
-        type="number"
-        className="h-12 w-full rounded-2xl border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none focus:border-[var(--primary)]"
-        value={value}
-        onChange={(event) => onChange(Number(event.target.value))}
-      />
-    </label>
-  );
-}
+};

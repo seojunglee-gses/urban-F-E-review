@@ -1,105 +1,44 @@
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  Cell,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from "recharts";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 
-import type { LiteraturePipelineController } from "../../hooks/useLiteraturePipeline";
-import {
-  chartPalette,
-  countEntries,
-  innerClass,
-  type CountEntry,
-} from "./dashboardShared";
+import type { ChartData, CountValue } from "../../types/review";
+import { descriptionText, innerPanel, titleText } from "./dashboardShared";
 
-export function EvidenceChartsPanel({
-  pipeline,
-}: {
-  pipeline: LiteraturePipelineController;
-}) {
-  const summary = pipeline.evidenceMap;
-  if (!summary) {
-    return (
-      <div className={innerClass}>
-        <p className="text-sm text-slate-500">
-          Run demo or classify records to populate charts.
-        </p>
+interface EvidenceChartsPanelProps {
+  chartData: ChartData | null;
+}
+
+const MiniBar = ({ title, data }: { title: string; data: CountValue[] }) => (
+  <div className={innerPanel}>
+    <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
+    {data.length ? (
+      <div className="mt-3 h-56">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart data={data.slice(0, 8)} margin={{ top: 8, right: 8, bottom: 28, left: 0 }}>
+            <CartesianGrid stroke="#e2e8f0" strokeDasharray="3 3" vertical={false} />
+            <XAxis dataKey="name" angle={-25} interval={0} tick={{ fontSize: 10 }} textAnchor="end" />
+            <YAxis allowDecimals={false} tick={{ fontSize: 10 }} />
+            <Tooltip />
+            <Bar dataKey="count" fill="#64748b" radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
-    );
-  }
+    ) : (
+      <p className={`${descriptionText} mt-3`}>Run a review to populate this chart.</p>
+    )}
+  </div>
+);
 
-  return (
+export const EvidenceChartsPanel = ({ chartData }: EvidenceChartsPanelProps) => (
+  <section className="space-y-4">
+    <div>
+      <h2 className={titleText}>Evidence charts</h2>
+      <p className={descriptionText}>Trends and distributions are computed from OpenAlex metadata and coded evidence.</p>
+    </div>
     <div className="grid gap-4 lg:grid-cols-2">
-      <ChartCard
-        title="Records by year"
-        data={countEntries(summary.yearCounts).sort((a, b) =>
-          a.name.localeCompare(b.name),
-        )}
-      />
-      <ChartCard
-        title="Topic distribution"
-        data={countEntries(summary.topicCounts)}
-      />
-      <ChartCard
-        title="Methodology distribution"
-        data={countEntries(summary.methodologyCounts)}
-      />
-      <ChartCard
-        title="Scale distribution"
-        data={countEntries(summary.scaleCounts)}
-      />
-      <ChartCard
-        title="Relationship type"
-        data={countEntries(summary.relationshipCounts)}
-      />
-      <ChartCard
-        title="Geography distribution"
-        data={countEntries(summary.geographyCounts).slice(0, 10)}
-      />
+      <MiniBar title="Yearly publication trend" data={chartData?.yearlyTrend ?? []} />
+      <MiniBar title="Urban form variables" data={chartData?.urbanFormVariables ?? []} />
+      <MiniBar title="Energy outcomes" data={chartData?.energyOutcomes ?? []} />
+      <MiniBar title="Methods" data={chartData?.methods ?? []} />
     </div>
-  );
-}
-
-function ChartCard({ title, data }: { title: string; data: CountEntry[] }) {
-  return (
-    <div className={innerClass}>
-      <h3 className="text-sm font-semibold text-slate-800">{title}</h3>
-      {data.length === 0 ? (
-        <p className="mt-3 text-sm text-slate-500">No chart data yet.</p>
-      ) : (
-        <div className="mt-3 h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart
-              data={data}
-              margin={{ left: 0, right: 8, top: 8, bottom: 44 }}
-            >
-              <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-              <XAxis
-                dataKey="name"
-                tick={{ fontSize: 11 }}
-                angle={-35}
-                textAnchor="end"
-                interval={0}
-              />
-              <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
-              <Tooltip />
-              <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                {data.map((entry, index) => (
-                  <Cell
-                    key={entry.name}
-                    fill={chartPalette[index % chartPalette.length]}
-                  />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      )}
-    </div>
-  );
-}
+  </section>
+);

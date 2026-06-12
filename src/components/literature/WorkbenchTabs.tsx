@@ -1,109 +1,47 @@
 import { useState } from "react";
 
-import type { LiteraturePipelineController } from "../../hooks/useLiteraturePipeline";
+import type { ReviewRunResponse } from "../../types/review";
 import { CodebookView } from "./CodebookView";
-import {
-  compactCardClass,
-  primaryButtonClass,
-  tabButtonBaseClass,
-} from "./dashboardShared";
 import { EvidenceChartsPanel } from "./EvidenceChartsPanel";
 import { EvidenceMatrix } from "./EvidenceMatrix";
 import { ExportPanel } from "./ExportPanel";
+import { majorCard, primaryButton, secondaryButton } from "./dashboardShared";
 import { RecordsTable } from "./RecordsTable";
 import { ResearchGapsPanel } from "./ResearchGapsPanel";
-import { TopicCards } from "./TopicCards";
 
-type WorkbenchTab =
-  | "overview"
-  | "matrix"
-  | "topics"
-  | "codebook"
-  | "records"
-  | "exports";
+interface WorkbenchTabsProps {
+  result: ReviewRunResponse | null;
+}
 
-const tabs: Array<{ id: WorkbenchTab; label: string }> = [
+type TabId = "overview" | "matrix" | "codebook" | "gaps" | "records" | "exports";
+
+const tabs: Array<{ id: TabId; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "matrix", label: "Evidence Matrix" },
-  { id: "topics", label: "Topics" },
   { id: "codebook", label: "Codebook" },
-  { id: "records", label: "Records" },
+  { id: "gaps", label: "Research Gaps" },
+  { id: "records", label: "Evidence Table" },
   { id: "exports", label: "Exports" },
 ];
 
-export function WorkbenchTabs({
-  pipeline,
-}: {
-  pipeline: LiteraturePipelineController;
-}) {
-  const [activeTab, setActiveTab] = useState<WorkbenchTab>("overview");
-
+export const WorkbenchTabs = ({ result }: WorkbenchTabsProps) => {
+  const [active, setActive] = useState<TabId>("overview");
+  const renderTab = () => {
+    if (active === "overview") return <EvidenceChartsPanel chartData={result?.chartData ?? null} />;
+    if (active === "matrix") return <EvidenceMatrix codedPapers={result?.codedPapers ?? []} />;
+    if (active === "codebook") return <CodebookView codebook={result?.codebook ?? null} llmSkipped={result?.status.codebook === "skipped" && Boolean(result?.papers.length)} />;
+    if (active === "gaps") return <ResearchGapsPanel gaps={result?.gapMap ?? []} />;
+    if (active === "records") return <RecordsTable papers={result?.papers ?? []} codedPapers={result?.codedPapers ?? []} />;
+    return <ExportPanel result={result} />;
+  };
   return (
-    <section className={compactCardClass}>
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex flex-wrap gap-2 rounded-full border border-slate-200 bg-slate-50 p-1">
-          {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              type="button"
-              className={`${tabButtonBaseClass} ${activeTab === tab.id ? "bg-[var(--primary)] text-white shadow-sm" : "text-slate-600 hover:bg-white hover:text-slate-900"}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className={primaryButtonClass}
-            onClick={pipeline.runDemo}
-          >
-            Run demo
-          </button>
-          <button
-            type="button"
-            className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-600 hover:border-[var(--primary)]"
-            onClick={pipeline.classifyRecords}
-            disabled={!pipeline.codebook}
-          >
-            Map evidence
-          </button>
-        </div>
+    <section className={majorCard}>
+      <div className="mb-5 flex flex-wrap gap-2">
+        {tabs.map((tab) => (
+          <button key={tab.id} className={active === tab.id ? primaryButton : secondaryButton} type="button" onClick={() => setActive(tab.id)}>{tab.label}</button>
+        ))}
       </div>
-
-      <div className="mt-5">
-        {activeTab === "overview" && <OverviewTab pipeline={pipeline} />}
-        {activeTab === "matrix" && <MatrixTab pipeline={pipeline} />}
-        {activeTab === "topics" && <TopicCards pipeline={pipeline} />}
-        {activeTab === "codebook" && <CodebookView pipeline={pipeline} />}
-        {activeTab === "records" && <RecordsTable pipeline={pipeline} />}
-        {activeTab === "exports" && <ExportPanel pipeline={pipeline} />}
-      </div>
+      {renderTab()}
     </section>
   );
-}
-
-function OverviewTab({ pipeline }: { pipeline: LiteraturePipelineController }) {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-        <p className="text-sm text-slate-600">
-          This dashboard summarizes where urban form and energy evidence is
-          concentrated across cities, methods, scales, and topics. Use the
-          matrix tab to inspect strong and sparse evidence cells.
-        </p>
-      </div>
-      <EvidenceChartsPanel pipeline={pipeline} />
-    </div>
-  );
-}
-
-function MatrixTab({ pipeline }: { pipeline: LiteraturePipelineController }) {
-  return (
-    <div className="space-y-4">
-      <EvidenceMatrix pipeline={pipeline} />
-      <ResearchGapsPanel pipeline={pipeline} />
-    </div>
-  );
-}
+};
