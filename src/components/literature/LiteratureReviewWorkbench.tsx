@@ -14,10 +14,6 @@ export const LiteratureReviewWorkbench = () => {
         <SearchHero
           query={pipeline.query}
           setQuery={pipeline.setQuery}
-          researchQuestion={pipeline.researchQuestion}
-          setResearchQuestion={pipeline.setResearchQuestion}
-          maxResults={pipeline.maxResults}
-          setMaxResults={pipeline.setMaxResults}
           isRunning={pipeline.isRunning}
           error={pipeline.error}
           steps={pipeline.progressSteps}

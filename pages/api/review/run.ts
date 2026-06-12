@@ -5,9 +5,9 @@ import { samplePapersForCodebook } from "../../../src/lib/codebook";
 import { buildChartData, buildEvidenceSummary, buildGapMap } from "../../../src/lib/evidence-summary";
 import { generateCodebookWithLlm, codePaperWithLlm } from "../../../src/lib/llm";
 import { buildMapData } from "../../../src/lib/map-data";
-import { searchOpenAlexWorks } from "../../../src/lib/openalex";
+import { getOpenAlexTopicGroups, searchOpenAlexWorks } from "../../../src/lib/openalex";
 import { codePaperDeterministically } from "../../../src/lib/paper-coding";
-import type { CodedPaper, Paper, ReviewCodebook, ReviewRunResponse, ReviewRunStatus } from "../../../src/types/review";
+import type { CodedPaper, CountValue, Paper, ReviewCodebook, ReviewRunResponse, ReviewRunStatus } from "../../../src/types/review";
 
 const reviewRunSchema = z.object({
   query: z.string().trim().min(2, "Enter a research topic or question."),
@@ -22,7 +22,7 @@ const defaultStatus = (): ReviewRunStatus => ({
   summary: "skipped",
 });
 
-const emptyResponse = ({ query, researchQuestion, status, errors }: { query: string; researchQuestion: string; status: ReviewRunStatus; errors: string[] }): ReviewRunResponse => ({
+const emptyResponse = ({ query, researchQuestion, status, errors, openAlexTopics = [] }: { query: string; researchQuestion: string; status: ReviewRunStatus; errors: string[]; openAlexTopics?: CountValue[] }): ReviewRunResponse => ({
   query,
   researchQuestion,
   status,
@@ -32,7 +32,7 @@ const emptyResponse = ({ query, researchQuestion, status, errors }: { query: str
   evidenceSummary: buildEvidenceSummary([], []),
   gapMap: [],
   mapData: [],
-  chartData: buildChartData([], []),
+  chartData: buildChartData([], [], openAlexTopics),
   errors,
 });
 
@@ -78,9 +78,20 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
   let papers: Paper[] = [];
   let codebook: ReviewCodebook | null = null;
   let codedPapers: CodedPaper[] = [];
+  let openAlexTopics: CountValue[] = [];
 
   try {
-    papers = await searchOpenAlexWorks({ query, maxResults });
+    const [paperResults, topicResults] = await Promise.allSettled([
+      searchOpenAlexWorks({ query, maxResults }),
+      getOpenAlexTopicGroups({ query }),
+    ]);
+    if (paperResults.status === "rejected") throw paperResults.reason;
+    papers = paperResults.value;
+    if (topicResults.status === "fulfilled") {
+      openAlexTopics = topicResults.value;
+    } else {
+      errors.push(`OpenAlex topic grouping unavailable: ${topicResults.reason instanceof Error ? topicResults.reason.message : "Unknown grouping error"}`);
+    }
     status.search = "success";
     if (papers.length === 0) {
       errors.push("OpenAlex returned no papers for this query. Try a broader topic or fewer Boolean operators.");
@@ -95,7 +106,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
         evidenceSummary: buildEvidenceSummary([], []),
         gapMap: [],
         mapData: [],
-        chartData: buildChartData([], []),
+        chartData: buildChartData([], [], openAlexTopics),
         errors,
       });
       return;
@@ -122,7 +133,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       evidenceSummary: buildEvidenceSummary(papers, []),
       gapMap: [],
       mapData: buildMapData(papers, []),
-      chartData: buildChartData(papers, []),
+      chartData: buildChartData(papers, [], openAlexTopics),
       errors,
     });
     return;
@@ -151,7 +162,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       evidenceSummary: buildEvidenceSummary(papers, []),
       gapMap: [],
       mapData: buildMapData(papers, []),
-      chartData: buildChartData(papers, []),
+      chartData: buildChartData(papers, [], openAlexTopics),
       errors,
     });
     return;
@@ -165,7 +176,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     errors.push(`Paper coding failed: ${error instanceof Error ? error.message : "Unknown coding error"}`);
   }
 
-  const chartData = buildChartData(papers, codedPapers);
+  const chartData = buildChartData(papers, codedPapers, openAlexTopics);
   status.summary = "success";
   res.status(200).json({
     query,

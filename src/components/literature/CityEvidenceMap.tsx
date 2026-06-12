@@ -14,12 +14,32 @@ const projectLat = (lat: number): number => ((90 - lat) / 180) * 100;
 
 const countBy = (papers: Paper[], predicate: (paper: Paper) => boolean): number => papers.filter(predicate).length;
 
+const studyAreaLabel = (paper: Paper): string | undefined => {
+  const mention = paper.geoMention;
+  if (!mention || mention.locationRole === "unknown") return undefined;
+  return [mention.city, mention.country, mention.region].filter(Boolean).join(", ") || mention.locationRole;
+};
+
+const topStudyAreas = (papers: Paper[]): Array<{ name: string; count: number }> => {
+  const counts = new Map<string, number>();
+  papers.forEach((paper) => {
+    const label = studyAreaLabel(paper);
+    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+  });
+  return Array.from(counts.entries())
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 6);
+};
+
 export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const maximum = maxCount(mapData);
   const countryOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "country_only");
   const regionOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "region_only");
   const notGeocoded = countBy(papers, (paper) => paper.geoMention?.locationRole === "study_area" && paper.geoMention.coordinateSource === "none");
   const unmapped = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
+  const studyAreas = topStudyAreas(papers);
+  const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
 
   return (
     <section className={`${majorCard} overflow-hidden`}>
@@ -64,6 +84,21 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Region-only</p><p className="mt-1 text-xl font-semibold text-slate-900">{regionOnly}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Not geocoded</p><p className="mt-1 text-xl font-semibold text-slate-900">{notGeocoded}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Unmapped</p><p className="mt-1 text-xl font-semibold text-slate-900">{unmapped}</p></div>
+      </div>
+      <div className={`${innerPanel} mt-4`}>
+        <p className="text-sm font-semibold text-slate-800">Extracted study-area locations</p>
+        {studyAreas.length ? (
+          <div className="mt-3 space-y-2">
+            {studyAreas.map((area) => (
+              <div key={area.name}>
+                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{area.name}</span><span>{area.count}</span></div>
+                <div className="mt-1 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-slate-400" style={{ width: `${(area.count / maxStudyArea) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`${descriptionText} mt-2`}>No study-area location has been extracted from titles or abstracts yet.</p>
+        )}
       </div>
     </section>
   );

@@ -149,6 +149,7 @@ export interface ChartData {
   incomeGroups: CountValue[];
   locationRoles: CountValue[];
   spatialScales: CountValue[];
+  openAlexTopics: CountValue[];
 }
 
 export interface ReviewRunStatus {

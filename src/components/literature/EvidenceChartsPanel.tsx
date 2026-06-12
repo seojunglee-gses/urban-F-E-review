@@ -35,6 +35,7 @@ export const EvidenceChartsPanel = ({ chartData }: EvidenceChartsPanelProps) => 
       <p className={descriptionText}>Trends and distributions are computed from paper records, extracted study-area context, and coded evidence.</p>
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
+      <MiniBar title="OpenAlex topic groups" data={chartData?.openAlexTopics ?? []} />
       <MiniBar title="Yearly publication trend" data={chartData?.yearlyTrend ?? []} />
       <MiniBar title="Urban form variables" data={chartData?.urbanFormVariables ?? []} />
       <MiniBar title="Energy outcomes" data={chartData?.energyOutcomes ?? []} />

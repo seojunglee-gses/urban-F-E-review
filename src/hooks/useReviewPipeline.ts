@@ -13,18 +13,16 @@ export interface ReviewProgressStep {
 
 interface StoredReviewState {
   query: string;
-  researchQuestion: string;
-  maxResults: number;
   result: ReviewRunResponse | null;
 }
 
 export const REVIEW_PROGRESS_LABELS = [
-  "Searching papers",
+  "Searching articles",
   "Reconstructing abstracts",
+  "Grouping topics",
   "Generating codebook",
   "Coding papers",
   "Summarizing evidence",
-  "Updating map",
   "Done",
 ] as const;
 
@@ -41,8 +39,6 @@ const parseResponse = async (response: Response): Promise<ReviewRunResponse> => 
 
 export const useReviewPipeline = () => {
   const [query, setQuery] = useState(defaultQuery);
-  const [researchQuestion, setResearchQuestion] = useState("How does urban form affect building energy consumption?");
-  const [maxResults, setMaxResults] = useState(50);
   const [result, setResult] = useState<ReviewRunResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -54,8 +50,6 @@ export const useReviewPipeline = () => {
     try {
       const stored = JSON.parse(raw) as Partial<StoredReviewState>;
       if (typeof stored.query === "string") setQuery(stored.query);
-      if (typeof stored.researchQuestion === "string") setResearchQuestion(stored.researchQuestion);
-      if (typeof stored.maxResults === "number") setMaxResults(stored.maxResults);
       if (stored.result) setResult(stored.result);
     } catch {
       window.localStorage.removeItem(STORAGE_KEY);
@@ -64,9 +58,9 @@ export const useReviewPipeline = () => {
 
   useEffect(() => {
     if (typeof window === "undefined") return;
-    const stored: StoredReviewState = { query, researchQuestion, maxResults, result };
+    const stored: StoredReviewState = { query, result };
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(stored));
-  }, [query, researchQuestion, maxResults, result]);
+  }, [query, result]);
 
   const runReview = useCallback(async () => {
     setIsRunning(true);
@@ -75,7 +69,7 @@ export const useReviewPipeline = () => {
       const response = await fetch("/api/review/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, researchQuestion, maxResults }),
+        body: JSON.stringify({ query, researchQuestion: query }),
       });
       const review = await parseResponse(response);
       setResult(review);
@@ -85,14 +79,12 @@ export const useReviewPipeline = () => {
     } finally {
       setIsRunning(false);
     }
-  }, [maxResults, query, researchQuestion]);
+  }, [query]);
 
   const reset = useCallback(() => {
     setResult(null);
     setError(null);
     setQuery(defaultQuery);
-    setResearchQuestion("How does urban form affect building energy consumption?");
-    setMaxResults(50);
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
   }, []);
 
@@ -104,7 +96,7 @@ export const useReviewPipeline = () => {
     return REVIEW_PROGRESS_LABELS.map((label, index) => {
       if (label === "Done") return { label, status: result.status.summary === "success" ? "complete" : "idle" };
       const failed =
-        (label === "Searching papers" && result.status.search === "failed") ||
+        (label === "Searching articles" && result.status.search === "failed") ||
         (label === "Generating codebook" && result.status.codebook === "failed") ||
         (label === "Coding papers" && result.status.coding === "failed") ||
         (label === "Summarizing evidence" && result.status.summary === "failed");
@@ -120,10 +112,6 @@ export const useReviewPipeline = () => {
   return {
     query,
     setQuery,
-    researchQuestion,
-    setResearchQuestion,
-    maxResults,
-    setMaxResults,
     result,
     isRunning,
     error,

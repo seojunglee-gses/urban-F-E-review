@@ -10,8 +10,10 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
   const summary = result?.evidenceSummary;
   const countries = topItems(result?.chartData.countries ?? [], 5);
   const climateZones = topItems(result?.chartData.climateZones ?? [], 4);
+  const incomeGroups = result?.chartData.incomeGroups ?? [];
   const maxCountry = Math.max(1, ...countries.map((item) => item.count));
   const maxClimate = Math.max(1, ...climateZones.map((item) => item.count));
+  const maxIncome = Math.max(1, ...incomeGroups.map((item) => item.count));
   const quickSignals = [
     ...(result?.chartData.urbanFormVariables.slice(0, 2) ?? []),
     ...(result?.chartData.energyOutcomes.slice(0, 2) ?? []),
@@ -65,6 +67,21 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
           </div>
         ) : (
           <p className={`${descriptionText} mt-3`}>Unknown climate zone counts appear until reliable climate evidence is found.</p>
+        )}
+      </section>
+      <section className={majorCard}>
+        <h2 className={titleText}>Income groups</h2>
+        {incomeGroups.length ? (
+          <div className="mt-4 space-y-3">
+            {incomeGroups.map((group) => (
+              <div key={group.name}>
+                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{group.name}</span><span>{group.count}</span></div>
+                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-500" style={{ width: `${(group.count / maxIncome) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`${descriptionText} mt-3`}>Income group counts appear after the World Bank lookup runs.</p>
         )}
       </section>
       <section className={majorCard}>
