@@ -57,7 +57,8 @@ export const codePaperDeterministically = (paper: Paper, codebook: ReviewCodeboo
   const evidenceStrength = inferEvidenceStrength(paper, text);
   const include = !missingAbstract && !urbanFormVariables.includes("unclear") && !energyOutcomes.includes("unclear");
   const confidence = missingAbstract ? 0.15 : include ? (evidenceStrength === "high" ? 0.82 : 0.68) : 0.42;
-  const country = paper.countries[0] ?? "unclear";
+  const country = paper.geoMention?.country ?? "unclear";
+  const studyLocation = [paper.geoMention?.city, paper.geoMention?.country, paper.geoMention?.region].filter(Boolean).join("; ") || "unclear";
 
   return {
     paperId: paper.id,
@@ -69,7 +70,7 @@ export const codePaperDeterministically = (paper: Paper, codebook: ReviewCodeboo
       method,
       spatialScale,
       climateContext: includesAny(text, ["tropical"]) ? "tropical" : includesAny(text, ["cold"]) ? "cold" : includesAny(text, ["mediterranean"]) ? "Mediterranean" : "unclear",
-      studyLocation: paper.countries.join("; ") || "unclear",
+      studyLocation,
       country,
       buildingType: includesAny(text, ["residential"]) ? "residential" : includesAny(text, ["office", "commercial"]) ? "commercial" : "unclear",
       keyFinding: codebook ? "coded using generated codebook" : "coded using deterministic fallback rules",

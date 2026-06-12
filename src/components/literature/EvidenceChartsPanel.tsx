@@ -32,13 +32,15 @@ export const EvidenceChartsPanel = ({ chartData }: EvidenceChartsPanelProps) => 
   <section className="space-y-4">
     <div>
       <h2 className={titleText}>Evidence charts</h2>
-      <p className={descriptionText}>Trends and distributions are computed from OpenAlex metadata and coded evidence.</p>
+      <p className={descriptionText}>Trends and distributions are computed from paper records, extracted study-area context, and coded evidence.</p>
     </div>
     <div className="grid gap-4 lg:grid-cols-2">
       <MiniBar title="Yearly publication trend" data={chartData?.yearlyTrend ?? []} />
       <MiniBar title="Urban form variables" data={chartData?.urbanFormVariables ?? []} />
       <MiniBar title="Energy outcomes" data={chartData?.energyOutcomes ?? []} />
       <MiniBar title="Methods" data={chartData?.methods ?? []} />
+      <MiniBar title="Study-area climate zones" data={chartData?.climateZones ?? []} />
+      <MiniBar title="Income groups" data={chartData?.incomeGroups ?? []} />
     </div>
   </section>
 );

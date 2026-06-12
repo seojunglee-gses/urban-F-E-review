@@ -1,4 +1,5 @@
 import { reconstructAbstract } from "./abstract";
+import { extractStudyAreaMention } from "./geo/extractStudyArea";
 import type { OpenAlexWork, Paper } from "../types/review";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -47,22 +48,27 @@ const getConcepts = (work: OpenAlexWork): string[] =>
     .map((concept) => asString(asRecord(concept).display_name))
     .filter(Boolean);
 
-export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => ({
-  id: work.id ?? `openalex-${Math.random().toString(36).slice(2)}`,
-  openAlexId: work.id ?? "",
-  title: work.title ?? work.display_name ?? "Untitled paper",
-  year: work.publication_year ?? null,
-  doi: work.doi ?? null,
-  journal: getJournal(work),
-  authors: getAuthors(work),
-  countries: getCountries(work),
-  institutions: getInstitutions(work),
-  concepts: getConcepts(work),
-  abstract: reconstructAbstract(work.abstract_inverted_index),
-  url: getUrl(work),
-  citedByCount: work.cited_by_count,
-  source: "openalex",
-});
+export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
+  const title = work.title ?? work.display_name ?? "Untitled paper";
+  const abstract = reconstructAbstract(work.abstract_inverted_index);
+  return {
+    id: work.id ?? `openalex-${Math.random().toString(36).slice(2)}`,
+    openAlexId: work.id ?? "",
+    title,
+    year: work.publication_year ?? null,
+    doi: work.doi ?? null,
+    journal: getJournal(work),
+    authors: getAuthors(work),
+    countries: getCountries(work),
+    institutions: getInstitutions(work),
+    concepts: getConcepts(work),
+    abstract,
+    url: getUrl(work),
+    citedByCount: work.cited_by_count,
+    source: "openalex",
+    geoMention: extractStudyAreaMention({ title, abstract }),
+  };
+};
 
 export const searchOpenAlexWorks = async ({
   query,

@@ -9,7 +9,9 @@ interface InsightSidebarProps {
 export const InsightSidebar = ({ result }: InsightSidebarProps) => {
   const summary = result?.evidenceSummary;
   const countries = topItems(result?.chartData.countries ?? [], 5);
+  const climateZones = topItems(result?.chartData.climateZones ?? [], 4);
   const maxCountry = Math.max(1, ...countries.map((item) => item.count));
+  const maxClimate = Math.max(1, ...climateZones.map((item) => item.count));
   const quickSignals = [
     ...(result?.chartData.urbanFormVariables.slice(0, 2) ?? []),
     ...(result?.chartData.energyOutcomes.slice(0, 2) ?? []),
@@ -19,7 +21,7 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
     ["Papers", summary?.totalPapers ?? result?.papers.length ?? 0],
     ["Included", summary?.includedPapers ?? 0],
     ["Manual review", summary?.manualReviewCount ?? 0],
-    ["Countries", result?.mapData.length ?? 0],
+    ["Markers", result?.mapData.length ?? 0],
   ] as const;
 
   return (
@@ -36,7 +38,7 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
         </div>
       </section>
       <section className={majorCard}>
-        <h2 className={titleText}>Top countries</h2>
+        <h2 className={titleText}>Study-area countries</h2>
         {countries.length ? (
           <div className="mt-4 space-y-3">
             {countries.map((country) => (
@@ -47,7 +49,22 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className={`${descriptionText} mt-3`}>Country distribution appears after the first OpenAlex run.</p>
+          <p className={`${descriptionText} mt-3`}>Study-area country counts appear when title/abstract text contains clear locations.</p>
+        )}
+      </section>
+      <section className={majorCard}>
+        <h2 className={titleText}>Climate context</h2>
+        {climateZones.length ? (
+          <div className="mt-4 space-y-3">
+            {climateZones.map((zone) => (
+              <div key={zone.name}>
+                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{zone.name}</span><span>{zone.count}</span></div>
+                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-400" style={{ width: `${(zone.count / maxClimate) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`${descriptionText} mt-3`}>Unknown climate zone counts appear until reliable climate evidence is found.</p>
         )}
       </section>
       <section className={majorCard}>

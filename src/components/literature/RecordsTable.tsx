@@ -11,7 +11,8 @@ interface RecordsTableProps {
 export const RecordsTable = ({ papers, codedPapers }: RecordsTableProps) => {
   const [filter, setFilter] = useState("");
   const codedById = useMemo(() => new Map(codedPapers.map((coded) => [coded.paperId, coded])), [codedPapers]);
-  const visible = papers.filter((paper) => `${paper.title} ${paper.journal ?? ""} ${paper.countries.join(" ")}`.toLowerCase().includes(filter.toLowerCase()));
+  const visible = papers.filter((paper) => `${paper.title} ${paper.journal ?? ""} ${paper.geoMention?.city ?? ""} ${paper.geoMention?.country ?? ""} ${paper.geoMention?.region ?? ""}`.toLowerCase().includes(filter.toLowerCase()));
+  const formatStudyArea = (paper: Paper): string => [paper.geoMention?.city, paper.geoMention?.country, paper.geoMention?.region].filter(Boolean).join(", ") || paper.geoMention?.locationRole || "unknown";
   return (
     <section>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -28,7 +29,7 @@ export const RecordsTable = ({ papers, codedPapers }: RecordsTableProps) => {
               <th className="px-4 py-3">Title</th>
               <th className="px-4 py-3">Year</th>
               <th className="px-4 py-3">Journal</th>
-              <th className="px-4 py-3">Country</th>
+              <th className="px-4 py-3">Study area</th>
               <th className="px-4 py-3">Urban form</th>
               <th className="px-4 py-3">Energy outcome</th>
               <th className="px-4 py-3">Method</th>
@@ -43,7 +44,7 @@ export const RecordsTable = ({ papers, codedPapers }: RecordsTableProps) => {
                   <td className="px-4 py-3 font-medium text-slate-800">{paper.title}</td>
                   <td className="px-4 py-3 text-slate-600">{paper.year ?? "—"}</td>
                   <td className="px-4 py-3 text-slate-600">{paper.journal ?? "—"}</td>
-                  <td className="px-4 py-3 text-slate-600">{coded?.codes.country ?? paper.countries.join(", ") || "unclear"}</td>
+                  <td className="px-4 py-3 text-slate-600">{formatStudyArea(paper)}</td>
                   <td className="px-4 py-3 text-slate-600">{coded?.codes.urbanFormVariables.join(", ") || "pending"}</td>
                   <td className="px-4 py-3 text-slate-600">{coded?.codes.energyOutcomes.join(", ") || "pending"}</td>
                   <td className="px-4 py-3 text-slate-600">{coded?.codes.method ?? "pending"}</td>

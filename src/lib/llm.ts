@@ -80,9 +80,9 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       {
         role: "system",
         content:
-          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate.",
+          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries.",
       },
-      { role: "user", content: JSON.stringify({ paper, codebook }) },
+      { role: "user", content: JSON.stringify({ paper: { id: paper.id, title: paper.title, abstract: paper.abstract, year: paper.year, concepts: paper.concepts, geoMention: paper.geoMention }, codebook }) },
     ],
   });
   const parsed = asRecord(extractJsonObject(completion.choices[0]?.message.content ?? ""));
@@ -99,7 +99,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       spatialScale: String(codes.spatialScale ?? "unclear"),
       climateContext: String(codes.climateContext ?? "unclear"),
       studyLocation: String(codes.studyLocation ?? "unclear"),
-      country: String(codes.country ?? paper.countries[0] ?? "unclear"),
+      country: String(codes.country ?? paper.geoMention?.country ?? "unclear"),
       buildingType: String(codes.buildingType ?? "unclear"),
       keyFinding: String(codes.keyFinding ?? "unclear"),
       evidenceStrength: ["low", "medium", "high", "unclear"].includes(String(codes.evidenceStrength)) ? (String(codes.evidenceStrength) as "low" | "medium" | "high" | "unclear") : "unclear",

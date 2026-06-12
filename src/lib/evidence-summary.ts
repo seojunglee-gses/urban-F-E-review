@@ -1,7 +1,7 @@
 import type { ChartData, CodedPaper, CountValue, EvidenceSummary, GapMapItem, Paper } from "../types/review";
 
-const increment = (counts: Record<string, number>, key: string): void => {
-  const normalized = key.trim() || "unclear";
+const increment = (counts: Record<string, number>, key: string | undefined): void => {
+  const normalized = key?.trim() || "unclear";
   counts[normalized] = (counts[normalized] ?? 0) + 1;
 };
 
@@ -17,19 +17,25 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[]): Char
   const energyCounts: Record<string, number> = {};
   const methodCounts: Record<string, number> = {};
   const countryCounts: Record<string, number> = {};
+  const regionCounts: Record<string, number> = {};
+  const climateZoneCounts: Record<string, number> = {};
+  const incomeGroupCounts: Record<string, number> = {};
+  const locationRoleCounts: Record<string, number> = {};
   const scaleCounts: Record<string, number> = {};
 
-  const codedIds = new Set(codedPapers.map((codedPaper) => codedPaper.paperId));
   papers.forEach((paper) => {
     increment(yearCounts, String(paper.year ?? "unknown"));
-    if (!codedIds.has(paper.id)) paper.countries.forEach((country) => increment(countryCounts, country));
+    increment(locationRoleCounts, paper.geoMention?.locationRole ?? "unknown");
+    increment(countryCounts, paper.geoMention?.country ?? (paper.geoMention?.locationRole === "unknown" ? "No study area" : undefined));
+    increment(regionCounts, paper.geoMention?.region);
+    increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
+    increment(incomeGroupCounts, paper.geoMention?.incomeGroup ?? "Unknown income group");
   });
   codedPapers.forEach((codedPaper) => {
     codedPaper.codes.urbanFormVariables.forEach((value) => increment(urbanFormCounts, value));
     codedPaper.codes.energyOutcomes.forEach((value) => increment(energyCounts, value));
     increment(methodCounts, codedPaper.codes.method);
     increment(scaleCounts, codedPaper.codes.spatialScale);
-    increment(countryCounts, codedPaper.codes.country);
   });
 
   return {
@@ -38,6 +44,10 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[]): Char
     energyOutcomes: topCounts(energyCounts),
     methods: topCounts(methodCounts),
     countries: topCounts(countryCounts),
+    regions: topCounts(regionCounts),
+    climateZones: topCounts(climateZoneCounts),
+    incomeGroups: topCounts(incomeGroupCounts),
+    locationRoles: topCounts(locationRoleCounts),
     spatialScales: topCounts(scaleCounts),
   };
 };
@@ -58,7 +68,7 @@ export const buildEvidenceSummary = (papers: Paper[], codedPapers: CodedPaper[])
     topSpatialScales: chartData.spatialScales,
     mainFindings: chartData.urbanFormVariables.slice(0, 3).map((item) => `${item.name} appears in ${item.count} coded papers.`),
     limitations: [
-      "OpenAlex metadata may provide country-level rather than city-level geography.",
+      "Map markers include only extracted study-area locations with coordinates; author affiliations are not mapped.",
       manualReviewCount > 0 ? `${manualReviewCount} papers require manual review because abstracts or coding confidence are limited.` : "Automated coding should still be reviewed before publication.",
     ],
   };
@@ -121,7 +131,7 @@ export const buildGapMap = (codedPapers: CodedPaper[], chartData: ChartData): Ga
   const scaleMethod = countPair(codedPapers, (paper) => [paper.codes.spatialScale], (paper) => [paper.codes.method]);
   const gaps = [
     ...buildGapItems({ dimensionA: "urban form variable", valuesA: urbanForms, dimensionB: "energy outcome", valuesB: outcomes, counts: formOutcome }),
-    ...buildGapItems({ dimensionA: "country/region", valuesA: countries, dimensionB: "energy outcome", valuesB: outcomes, counts: countryOutcome }),
+    ...buildGapItems({ dimensionA: "study-area country/region", valuesA: countries, dimensionB: "energy outcome", valuesB: outcomes, counts: countryOutcome }),
     ...buildGapItems({ dimensionA: "spatial scale", valuesA: scales, dimensionB: "method", valuesB: methods, counts: scaleMethod }),
   ];
   codedPapers.filter((paper) => paper.needsManualReview).slice(0, 5).forEach((paper) => {

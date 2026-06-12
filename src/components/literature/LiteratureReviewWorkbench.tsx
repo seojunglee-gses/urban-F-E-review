@@ -25,7 +25,7 @@ export const LiteratureReviewWorkbench = () => {
           onReset={pipeline.reset}
         />
         <section className="grid gap-5 lg:grid-cols-[minmax(0,1.6fr)_minmax(360px,0.8fr)]">
-          <CityEvidenceMap mapData={pipeline.result?.mapData ?? []} />
+          <CityEvidenceMap mapData={pipeline.result?.mapData ?? []} papers={pipeline.result?.papers ?? []} />
           <InsightSidebar result={pipeline.result} />
         </section>
         <WorkbenchTabs result={pipeline.result} />

@@ -1,6 +1,35 @@
 export type PaperSource = "openalex" | "web-of-science";
 export type PipelineStepStatus = "success" | "skipped" | "failed";
 export type EvidenceStrength = "low" | "medium" | "high" | "unclear";
+export type LocationRole = "study_area" | "country_only" | "region_only" | "unknown";
+export type GeoMentionSource = "llm" | "title" | "abstract" | "geocoder" | "manual" | "unknown";
+export type CoordinateSource = "geocoding_api" | "map_library" | "none";
+
+export interface GeoMention {
+  city?: string;
+  country?: string;
+  region?: string;
+  lat?: number;
+  lon?: number;
+  climateZone?: string;
+  localClimateZone?: string;
+  incomeGroup?: string;
+  confidence: number;
+  source: GeoMentionSource;
+  coordinateSource: CoordinateSource;
+  locationRole: LocationRole;
+  evidenceText?: string;
+}
+
+export interface StudyAreaExtractionResult {
+  hasStudyArea: boolean;
+  city?: string;
+  country?: string;
+  region?: string;
+  locationRole: LocationRole;
+  confidence: number;
+  evidenceText?: string;
+}
 
 export interface Paper {
   id: string;
@@ -17,6 +46,7 @@ export interface Paper {
   url: string | null;
   citedByCount?: number;
   source: PaperSource;
+  geoMention?: GeoMention;
 }
 
 export interface CodebookVariable {
@@ -90,12 +120,21 @@ export interface GapMapItem {
 }
 
 export interface MapDataItem {
-  country: string;
+  locationKey: string;
+  city?: string;
+  country?: string;
+  region?: string;
+  lat: number;
+  lon: number;
+  climateZone?: string;
+  localClimateZone?: string;
+  incomeGroup?: string;
   paperCount: number;
   includedCount: number;
   averageConfidence: number;
   topTopics: string[];
   papers: string[];
+  evidenceTexts: string[];
 }
 
 export interface ChartData {
@@ -104,6 +143,10 @@ export interface ChartData {
   energyOutcomes: CountValue[];
   methods: CountValue[];
   countries: CountValue[];
+  regions: CountValue[];
+  climateZones: CountValue[];
+  incomeGroups: CountValue[];
+  locationRoles: CountValue[];
   spatialScales: CountValue[];
 }
 

@@ -5,6 +5,23 @@ import { codePaperWithLlm } from "../../../src/lib/llm";
 import { codePaperDeterministically } from "../../../src/lib/paper-coding";
 import type { CodedPaper, Paper, ReviewCodebook } from "../../../src/types/review";
 
+
+const geoMentionSchema = z.object({
+  city: z.string().optional(),
+  country: z.string().optional(),
+  region: z.string().optional(),
+  lat: z.number().optional(),
+  lon: z.number().optional(),
+  climateZone: z.string().optional(),
+  localClimateZone: z.string().optional(),
+  incomeGroup: z.string().optional(),
+  confidence: z.number(),
+  source: z.enum(["llm", "title", "abstract", "geocoder", "manual", "unknown"]),
+  coordinateSource: z.enum(["geocoding_api", "map_library", "none"]),
+  locationRole: z.enum(["study_area", "country_only", "region_only", "unknown"]),
+  evidenceText: z.string().optional(),
+});
+
 const paperSchema = z.object({
   id: z.string(),
   openAlexId: z.string().default(""),
@@ -20,6 +37,7 @@ const paperSchema = z.object({
   url: z.string().nullable(),
   citedByCount: z.number().optional(),
   source: z.enum(["openalex", "web-of-science"]),
+  geoMention: geoMentionSchema.optional(),
 });
 
 const codebookSchema = z.object({
