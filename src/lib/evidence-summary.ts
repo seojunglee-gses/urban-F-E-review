@@ -1,3 +1,4 @@
+import { incomeGroupDisplayOrder } from "./geo/incomeGroups";
 import type { ChartData, CodedPaper, CountValue, EvidenceSummary, GapMapItem, Paper } from "../types/review";
 
 const increment = (counts: Record<string, number>, key: string | undefined): void => {
@@ -19,7 +20,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[]): Char
   const countryCounts: Record<string, number> = {};
   const regionCounts: Record<string, number> = {};
   const climateZoneCounts: Record<string, number> = {};
-  const incomeGroupCounts: Record<string, number> = {};
+  const incomeGroupCounts: Record<string, number> = Object.fromEntries(incomeGroupDisplayOrder().map((group) => [group, 0]));
   const locationRoleCounts: Record<string, number> = {};
   const scaleCounts: Record<string, number> = {};
 
@@ -46,7 +47,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[]): Char
     countries: topCounts(countryCounts),
     regions: topCounts(regionCounts),
     climateZones: topCounts(climateZoneCounts),
-    incomeGroups: topCounts(incomeGroupCounts),
+    incomeGroups: incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
     locationRoles: topCounts(locationRoleCounts),
     spatialScales: topCounts(scaleCounts),
   };

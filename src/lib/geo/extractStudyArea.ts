@@ -1,3 +1,4 @@
+import { getIncomeGroupForCountry } from "./incomeGroups";
 import type { GeoMention, LocationRole } from "../../types/review";
 
 const COUNTRY_NAMES = [
@@ -35,13 +36,6 @@ const CLIMATE_ZONE_PATTERNS: Array<[string, RegExp]> = [
   ["Mediterranean", /\bmediterranean\b/i],
 ];
 
-const INCOME_GROUP_PATTERNS: Array<[string, RegExp]> = [
-  ["high-income", /\bhigh-income\b/i],
-  ["upper-middle-income", /\bupper-middle-income\b/i],
-  ["lower-middle-income", /\blower-middle-income\b/i],
-  ["low-income", /\blow-income\b/i],
-];
-
 const cleanLocation = (value: string): string =>
   value
     .replace(/\b(?:city|cities|urban areas?|metropolitan areas?|neighborhoods?|districts?)\b$/i, "")
@@ -54,8 +48,6 @@ const findRegion = (text: string): string | undefined =>
   REGION_NAMES.find((region) => new RegExp(`\\b${region.replace(/ /g, "\\s+")}\\b`, "i").test(text));
 
 const findClimateZone = (text: string): string | undefined => CLIMATE_ZONE_PATTERNS.find(([, pattern]) => pattern.test(text))?.[0];
-
-const findIncomeGroup = (text: string): string | undefined => INCOME_GROUP_PATTERNS.find(([, pattern]) => pattern.test(text))?.[0];
 
 const findLocalClimateZone = (text: string): string | undefined => {
   const match = text.match(/\b(?:LCZ|Local Climate Zone)\s*([A-G]|\d{1,2})\b/i);
@@ -77,8 +69,6 @@ export const extractStudyAreaMention = ({ title, abstract }: { title: string; ab
   const text = `${title}. ${abstract ?? ""}`;
   const climateZone = findClimateZone(text);
   const localClimateZone = findLocalClimateZone(text);
-  const incomeGroup = findIncomeGroup(text);
-
   for (const pattern of STUDY_AREA_PATTERNS) {
     const match = text.match(pattern);
     if (match?.[1]) {
@@ -89,7 +79,7 @@ export const extractStudyAreaMention = ({ title, abstract }: { title: string; ab
           ...classified,
           climateZone,
           localClimateZone,
-          incomeGroup,
+          incomeGroup: getIncomeGroupForCountry(classified.country),
           confidence: classified.role === "study_area" ? 0.72 : 0.62,
           source: abstract ? "abstract" : "title",
           coordinateSource: "none",
@@ -106,7 +96,7 @@ export const extractStudyAreaMention = ({ title, abstract }: { title: string; ab
       region: findRegion(text),
       climateZone,
       localClimateZone,
-      incomeGroup,
+      incomeGroup: getIncomeGroupForCountry(country),
       confidence: 0.55,
       source: abstract ? "abstract" : "title",
       coordinateSource: "none",
@@ -120,7 +110,7 @@ export const extractStudyAreaMention = ({ title, abstract }: { title: string; ab
       region,
       climateZone,
       localClimateZone,
-      incomeGroup,
+      incomeGroup: "Unknown",
       confidence: 0.5,
       source: abstract ? "abstract" : "title",
       coordinateSource: "none",
@@ -131,7 +121,7 @@ export const extractStudyAreaMention = ({ title, abstract }: { title: string; ab
   return {
     climateZone,
     localClimateZone,
-    incomeGroup,
+    incomeGroup: "Unknown",
     confidence: 0,
     source: "unknown",
     coordinateSource: "none",

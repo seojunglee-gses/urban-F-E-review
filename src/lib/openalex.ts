@@ -1,5 +1,6 @@
 import { reconstructAbstract } from "./abstract";
 import { extractStudyAreaMention } from "./geo/extractStudyArea";
+import { getIncomeGroupForCountryWithLlmFallback } from "./geo/incomeGroups";
 import type { OpenAlexWork, Paper } from "../types/review";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -70,6 +71,23 @@ export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
   };
 };
 
+const enrichIncomeGroups = async (papers: Paper[]): Promise<Paper[]> =>
+  Promise.all(
+    papers.map(async (paper) => {
+      const country = paper.geoMention?.country;
+      if (!paper.geoMention || !country) return paper;
+      const lookup = await getIncomeGroupForCountryWithLlmFallback(country);
+      return {
+        ...paper,
+        geoMention: {
+          ...paper.geoMention,
+          country: lookup.matchedCountry ?? paper.geoMention.country,
+          incomeGroup: lookup.incomeGroup,
+        },
+      };
+    }),
+  );
+
 export const searchOpenAlexWorks = async ({
   query,
   maxResults,
@@ -91,5 +109,6 @@ export const searchOpenAlexWorks = async ({
     throw new Error(`OpenAlex request failed with status ${response.status}`);
   }
   const payload = (await response.json()) as unknown;
-  return asArray(asRecord(payload).results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork));
+  const papers = asArray(asRecord(payload).results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork));
+  return enrichIncomeGroups(papers);
 };

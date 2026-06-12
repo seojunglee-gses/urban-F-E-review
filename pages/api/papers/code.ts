@@ -14,7 +14,7 @@ const geoMentionSchema = z.object({
   lon: z.number().optional(),
   climateZone: z.string().optional(),
   localClimateZone: z.string().optional(),
-  incomeGroup: z.string().optional(),
+  incomeGroup: z.enum(["Low income", "Lower middle income", "Upper middle income", "High income", "Unknown"]).optional(),
   confidence: z.number(),
   source: z.enum(["llm", "title", "abstract", "geocoder", "manual", "unknown"]),
   coordinateSource: z.enum(["geocoding_api", "map_library", "none"]),

@@ -4,6 +4,7 @@ export type EvidenceStrength = "low" | "medium" | "high" | "unclear";
 export type LocationRole = "study_area" | "country_only" | "region_only" | "unknown";
 export type GeoMentionSource = "llm" | "title" | "abstract" | "geocoder" | "manual" | "unknown";
 export type CoordinateSource = "geocoding_api" | "map_library" | "none";
+export type IncomeGroup = "Low income" | "Lower middle income" | "Upper middle income" | "High income" | "Unknown";
 
 export interface GeoMention {
   city?: string;
@@ -13,7 +14,7 @@ export interface GeoMention {
   lon?: number;
   climateZone?: string;
   localClimateZone?: string;
-  incomeGroup?: string;
+  incomeGroup?: IncomeGroup;
   confidence: number;
   source: GeoMentionSource;
   coordinateSource: CoordinateSource;
@@ -128,7 +129,7 @@ export interface MapDataItem {
   lon: number;
   climateZone?: string;
   localClimateZone?: string;
-  incomeGroup?: string;
+  incomeGroup?: IncomeGroup;
   paperCount: number;
   includedCount: number;
   averageConfidence: number;

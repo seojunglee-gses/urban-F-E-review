@@ -2,7 +2,7 @@ import OpenAI from "openai";
 
 import { buildFallbackCodebook } from "./codebook";
 import { codePaperDeterministically } from "./paper-coding";
-import type { CodedPaper, Paper, ReviewCodebook } from "../types/review";
+import type { CodedPaper, CodebookVariable, Paper, ReviewCodebook } from "../types/review";
 
 const extractJsonObject = (content: string): unknown => {
   const trimmed = content.trim();
@@ -18,21 +18,34 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 const asStringArray = (value: unknown): string[] => (Array.isArray(value) ? value.map(String).filter(Boolean) : []);
 
+const incomeGroupVariable: CodebookVariable = {
+  name: "income group",
+  definition: "World Bank income group for the extracted study-area country.",
+  type: "categorical",
+  allowedValues: ["High income", "Upper middle income", "Lower middle income", "Low income", "Unknown"],
+  extractionRule: "Do not ask the model to infer this value. The application assigns it from worldBankIncomeGroups.json after resolving the study-area country.",
+  examples: ["High income", "Lower middle income"],
+};
+
 export const normalizeCodebook = (value: unknown, researchQuestion: string): ReviewCodebook => {
   const record = asRecord(value);
   const variables = Array.isArray(record.variables) ? record.variables.map(asRecord) : [];
+  const normalizedVariables = variables.map((variable) => ({
+    name: String(variable.name ?? "unnamed variable"),
+    definition: String(variable.definition ?? ""),
+    type: ["categorical", "numeric", "text", "boolean"].includes(String(variable.type)) ? (String(variable.type) as "categorical" | "numeric" | "text" | "boolean") : "text",
+    allowedValues: asStringArray(variable.allowedValues),
+    extractionRule: String(variable.extractionRule ?? "Use title and abstract only."),
+    examples: asStringArray(variable.examples),
+  }));
+  if (!normalizedVariables.some((variable) => variable.name.toLowerCase().includes("income group"))) {
+    normalizedVariables.push(incomeGroupVariable);
+  }
   return {
     researchQuestion: String(record.researchQuestion ?? researchQuestion),
     inclusionCriteria: asStringArray(record.inclusionCriteria),
     exclusionCriteria: asStringArray(record.exclusionCriteria),
-    variables: variables.map((variable) => ({
-      name: String(variable.name ?? "unnamed variable"),
-      definition: String(variable.definition ?? ""),
-      type: ["categorical", "numeric", "text", "boolean"].includes(String(variable.type)) ? (String(variable.type) as "categorical" | "numeric" | "text" | "boolean") : "text",
-      allowedValues: asStringArray(variable.allowedValues),
-      extractionRule: String(variable.extractionRule ?? "Use title and abstract only."),
-      examples: asStringArray(variable.examples),
-    })),
+    variables: normalizedVariables,
     extractionRules: asStringArray(record.extractionRules),
     codingInstructions: asStringArray(record.codingInstructions),
     qualityChecks: asStringArray(record.qualityChecks),
@@ -57,7 +70,7 @@ export const generateCodebookWithLlm = async ({
       {
         role: "system",
         content:
-          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping.",
+          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping, including study-area country and income group. Income group must be populated by the application lookup, not guessed by the model.",
       },
       {
         role: "user",
@@ -80,7 +93,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       {
         role: "system",
         content:
-          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries.",
+          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries. Do not guess income group; it is assigned only by application lookup from the study-area country.",
       },
       { role: "user", content: JSON.stringify({ paper: { id: paper.id, title: paper.title, abstract: paper.abstract, year: paper.year, concepts: paper.concepts, geoMention: paper.geoMention }, codebook }) },
     ],
