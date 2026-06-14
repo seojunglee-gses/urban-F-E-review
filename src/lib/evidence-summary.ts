@@ -23,6 +23,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
   const incomeGroupCounts: Record<string, number> = Object.fromEntries(incomeGroupDisplayOrder().map((group) => [group, 0]));
   const locationRoleCounts: Record<string, number> = {};
   const scaleCounts: Record<string, number> = {};
+  const primaryTopicCounts: Record<string, number> = {};
 
   papers.forEach((paper) => {
     increment(yearCounts, String(paper.year ?? "unknown"));
@@ -31,6 +32,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     increment(regionCounts, paper.geoMention?.region);
     increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
     increment(incomeGroupCounts, paper.geoMention?.incomeGroup ?? "Unknown");
+    increment(primaryTopicCounts, paper.primaryTopic ?? "No primary topic");
   });
   codedPapers.forEach((codedPaper) => {
     codedPaper.codes.urbanFormVariables.forEach((value) => increment(urbanFormCounts, value));
@@ -50,7 +52,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     incomeGroups: incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
     locationRoles: topCounts(locationRoleCounts),
     spatialScales: topCounts(scaleCounts),
-    openAlexTopics,
+    openAlexTopics: topCounts(primaryTopicCounts, 10).length ? topCounts(primaryTopicCounts, 10) : openAlexTopics,
   };
 };
 
