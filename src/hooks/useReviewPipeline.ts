@@ -76,7 +76,7 @@ export const useReviewPipeline = () => {
       const response = await fetch("/api/review/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, researchQuestion: query }),
+        body: JSON.stringify({ query, researchQuestion: query, maxResults: 1000 }),
       });
       const review = await parseResponse(response);
       setResult(review);

@@ -47,6 +47,20 @@ const findCountry = (text: string): string | undefined => {
   return resolveCountryToCanonicalName(found) ?? found;
 };
 
+export const extractStudyAreaCountries = (text: string): string[] =>
+  Array.from(
+    new Set(
+      COUNTRY_NAMES.filter((country) => new RegExp(`\\b${country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+")}\\b`, "i").test(text))
+        .map((country) => resolveCountryToCanonicalName(country) ?? country),
+    ),
+  );
+
+export const splitStudyAreaCities = (city?: string): string[] =>
+  city
+    ?.split(/\s*,\s*|\s+and\s+/i)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 1) ?? [];
+
 const findRegion = (text: string): string | undefined =>
   REGION_NAMES.find((region) => new RegExp(`\\b${region.replace(/ /g, "\\s+")}\\b`, "i").test(text));
 

@@ -1,7 +1,8 @@
 import { reconstructAbstract } from "./abstract";
 import { enrichClimateContexts } from "./geo/climateContext";
-import { extractStudyAreaMention } from "./geo/extractStudyArea";
+import { extractStudyAreaCountries, extractStudyAreaMention, splitStudyAreaCities } from "./geo/extractStudyArea";
 import { getIncomeGroupForCountryWithLlmFallback } from "./geo/incomeGroups";
+import { enrichWorldRegions } from "./geo/worldRegions";
 import type { CountValue, OpenAlexWork, Paper } from "../types/review";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -68,6 +69,9 @@ const getTopicGroups = (payload: unknown): CountValue[] =>
 export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
   const title = work.title ?? work.display_name ?? "Untitled paper";
   const abstract = reconstructAbstract(work.abstract_inverted_index);
+  const geoMention = extractStudyAreaMention({ title, abstract });
+  const text = `${title}. ${abstract ?? ""}`;
+  const studyAreaCountries = extractStudyAreaCountries(text);
   return {
     id: work.id ?? `openalex-${Math.random().toString(36).slice(2)}`,
     openAlexId: work.id ?? "",
@@ -83,8 +87,10 @@ export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
     url: getUrl(work),
     citedByCount: work.cited_by_count,
     primaryTopic: getPrimaryTopic(work),
+    studyAreaCountries: studyAreaCountries.length ? studyAreaCountries : geoMention.country ? [geoMention.country] : [],
+    studyAreaCities: splitStudyAreaCities(geoMention.city),
     source: "openalex",
-    geoMention: extractStudyAreaMention({ title, abstract }),
+    geoMention,
   };
 };
 
@@ -105,8 +111,15 @@ const enrichIncomeGroups = async (papers: Paper[]): Promise<Paper[]> =>
     }),
   );
 
-const enrichGeoContext = async (papers: Paper[]): Promise<Paper[]> =>
-  enrichClimateContexts(await enrichIncomeGroups(papers));
+const enrichGeoContext = async (papers: Paper[]): Promise<Paper[]> => {
+  const incomeEnriched = await enrichIncomeGroups(papers);
+  const regions = await enrichWorldRegions(incomeEnriched.flatMap((paper) => paper.studyAreaCountries ?? []));
+  const regionEnriched = incomeEnriched.map((paper) => ({
+    ...paper,
+    studyAreaRegions: Array.from(new Set((paper.studyAreaCountries ?? []).map((country) => regions.get(country) ?? "Unclassified region"))),
+  }));
+  return enrichClimateContexts(regionEnriched);
+};
 
 export const searchOpenAlexWorks = async ({
   query,

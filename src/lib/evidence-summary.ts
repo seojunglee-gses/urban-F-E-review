@@ -18,6 +18,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
   const energyCounts: Record<string, number> = {};
   const methodCounts: Record<string, number> = {};
   const countryCounts: Record<string, number> = {};
+  const cityCounts: Record<string, number> = {};
   const regionCounts: Record<string, number> = {};
   const climateZoneCounts: Record<string, number> = {};
   const incomeGroupCounts: Record<string, number> = Object.fromEntries(incomeGroupDisplayOrder().map((group) => [group, 0]));
@@ -28,8 +29,12 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
   papers.forEach((paper) => {
     increment(yearCounts, String(paper.year ?? "unknown"));
     increment(locationRoleCounts, paper.geoMention?.locationRole ?? "unknown");
-    increment(countryCounts, paper.geoMention?.country ?? (paper.geoMention?.locationRole === "unknown" ? "No study area" : undefined));
-    increment(regionCounts, paper.geoMention?.region);
+    const countries = paper.studyAreaCountries?.length ? paper.studyAreaCountries : paper.geoMention?.country ? [paper.geoMention.country] : [];
+    const regions = paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
+    const cities = paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
+    (countries.length ? countries : [paper.geoMention?.locationRole === "unknown" ? "No study-area country" : undefined]).forEach((country) => increment(countryCounts, country));
+    (regions.length ? regions : [undefined]).forEach((region) => increment(regionCounts, region));
+    cities.forEach((city) => increment(cityCounts, city));
     increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
     increment(incomeGroupCounts, paper.geoMention?.country ? paper.geoMention.incomeGroup ?? "Country needs income lookup" : "No study-area country");
     increment(primaryTopicCounts, paper.primaryTopic ?? "No primary topic");
@@ -47,6 +52,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     energyOutcomes: topCounts(energyCounts),
     methods: topCounts(methodCounts),
     countries: topCounts(countryCounts),
+    cities: topCounts(cityCounts),
     regions: topCounts(regionCounts),
     climateZones: topCounts(climateZoneCounts),
     incomeGroups: [
