@@ -49,6 +49,11 @@ const getConcepts = (work: OpenAlexWork): string[] =>
     .map((concept) => asString(asRecord(concept).display_name))
     .filter(Boolean);
 
+const getPrimaryTopic = (work: OpenAlexWork): string | null => {
+  const topic = asRecord(work.primary_topic);
+  return asString(topic.display_name) || asString(topic.name) || null;
+};
+
 const getTopicGroups = (payload: unknown): CountValue[] =>
   asArray(asRecord(payload).group_by)
     .map((item) => {
@@ -76,6 +81,7 @@ export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
     abstract,
     url: getUrl(work),
     citedByCount: work.cited_by_count,
+    primaryTopic: getPrimaryTopic(work),
     source: "openalex",
     geoMention: extractStudyAreaMention({ title, abstract }),
   };
@@ -105,21 +111,31 @@ export const searchOpenAlexWorks = async ({
   query: string;
   maxResults: number;
 }): Promise<Paper[]> => {
-  const url = new URL("https://api.openalex.org/works");
-  url.searchParams.set("search", query);
-  url.searchParams.set("per-page", String(Math.min(Math.max(maxResults, 1), 200)));
-  url.searchParams.set("filter", "has_abstract:true,type:article");
-  const mailto = process.env.OPENALEX_MAILTO;
-  if (mailto) url.searchParams.set("mailto", mailto);
+  const limit = Math.min(Math.max(maxResults, 1), 1000);
+  const perPage = 200;
+  const papers: Paper[] = [];
+  let cursor = "*";
+  while (papers.length < limit) {
+    const url = new URL("https://api.openalex.org/works");
+    url.searchParams.set("search", query);
+    url.searchParams.set("per-page", String(Math.min(perPage, limit - papers.length)));
+    url.searchParams.set("cursor", cursor);
+    url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
+    const mailto = process.env.OPENALEX_MAILTO;
+    if (mailto) url.searchParams.set("mailto", mailto);
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`OpenAlex request failed with status ${response.status}`);
+    const response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`OpenAlex request failed with status ${response.status}`);
+    }
+    const payload = asRecord((await response.json()) as unknown);
+    papers.push(...asArray(payload.results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork)));
+    const nextCursor = asString(asRecord(payload.meta).next_cursor);
+    if (!nextCursor || nextCursor === cursor || asArray(payload.results).length === 0) break;
+    cursor = nextCursor;
   }
-  const payload = (await response.json()) as unknown;
-  const papers = asArray(asRecord(payload).results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork));
   return enrichIncomeGroups(papers);
 };
 
@@ -130,7 +146,7 @@ export const getOpenAlexTopicGroups = async ({
 }): Promise<CountValue[]> => {
   const url = new URL("https://api.openalex.org/works");
   url.searchParams.set("search", query);
-  url.searchParams.set("filter", "has_abstract:true,type:article");
+  url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
   url.searchParams.set("group_by", "primary_topic.id");
   const mailto = process.env.OPENALEX_MAILTO;
   if (mailto) url.searchParams.set("mailto", mailto);

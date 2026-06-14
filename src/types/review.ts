@@ -46,6 +46,7 @@ export interface Paper {
   abstract: string | null;
   url: string | null;
   citedByCount?: number;
+  primaryTopic?: string | null;
   source: PaperSource;
   geoMention?: GeoMention;
 }
@@ -192,4 +193,5 @@ export interface OpenAlexWork {
   abstract_inverted_index?: Record<string, number[]> | null;
   cited_by_count?: number;
   landing_page_url?: string | null;
+  primary_topic?: unknown;
 }

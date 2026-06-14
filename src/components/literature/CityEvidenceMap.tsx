@@ -20,11 +20,23 @@ const studyAreaLabel = (paper: Paper): string | undefined => {
   return [mention.city, mention.country, mention.region].filter(Boolean).join(", ") || mention.locationRole;
 };
 
+const studyAreaLabels = (paper: Paper): string[] => {
+  const label = studyAreaLabel(paper);
+  if (!label) return [];
+  const mention = paper.geoMention;
+  if (!mention?.city || !/(,|\band\b)/i.test(mention.city)) return [label];
+  const suffix = [mention.country, mention.region].filter(Boolean).join(", ");
+  return mention.city
+    .split(/\s*,\s*|\s+and\s+/i)
+    .map((city) => city.trim())
+    .filter((city) => city.length > 1)
+    .map((city) => [city, suffix].filter(Boolean).join(", "));
+};
+
 const topStudyAreas = (papers: Paper[]): Array<{ name: string; count: number }> => {
   const counts = new Map<string, number>();
   papers.forEach((paper) => {
-    const label = studyAreaLabel(paper);
-    if (label) counts.set(label, (counts.get(label) ?? 0) + 1);
+    studyAreaLabels(paper).forEach((label) => counts.set(label, (counts.get(label) ?? 0) + 1));
   });
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))
@@ -48,7 +60,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           <h2 className={titleText}>Study-area evidence map</h2>
           <p className={descriptionText}>Markers use extracted study-area locations only. Author affiliations, institutions, and publisher locations are never mapped.</p>
         </div>
-        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{mapData.length} geocoded markers</span>
+        <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{mapData.length} mapped study areas/countries</span>
       </div>
       <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_30%_20%,#e2e8f0_0,#f8fafc_35%,#f1f5f9_100%)]">
         <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
@@ -62,7 +74,8 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
               <div key={item.locationKey} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.lon)}%`, top: `${projectLat(item.lat)}%` }}>
                 <div className="flex items-center justify-center rounded-full border border-white/80 bg-[var(--primary)]/80 text-[10px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-[var(--primary)]/10" style={{ width: size, height: size }}>{item.paperCount}</div>
                 <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl group-hover:block">
-                  <p className="font-semibold text-slate-900">{item.locationKey}</p>
+                  <p className="font-semibold text-slate-900">{item.country ?? item.locationKey}</p>
+                  {item.city || item.region ? <p className="mt-1 text-slate-500">{[item.city, item.region].filter(Boolean).join(", ")}</p> : null}
                   <p className="mt-1 text-slate-500">{item.paperCount} papers · avg confidence {Math.round(item.averageConfidence * 100)}%</p>
                   <p className="mt-2 text-slate-600">Climate: {item.climateZone ?? "Unknown climate zone"} · Income: {item.incomeGroup ?? "Unknown income group"}</p>
                   <p className="mt-2 text-slate-600">Top topics: {item.topTopics.length ? item.topTopics.join(", ") : "pending coding"}</p>

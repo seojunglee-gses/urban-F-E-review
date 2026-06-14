@@ -12,7 +12,7 @@ import type { CodedPaper, CountValue, Paper, ReviewCodebook, ReviewRunResponse, 
 const reviewRunSchema = z.object({
   query: z.string().trim().min(2, "Enter a research topic or question."),
   researchQuestion: z.string().trim().optional(),
-  maxResults: z.number().int().min(1).max(200).optional().default(50),
+  maxResults: z.number().int().min(1).max(1000).optional().default(1000),
 });
 
 const defaultStatus = (): ReviewRunStatus => ({
@@ -92,6 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     } else {
       errors.push(`OpenAlex topic grouping unavailable: ${topicResults.reason instanceof Error ? topicResults.reason.message : "Unknown grouping error"}`);
     }
+    openAlexTopics = buildChartData(papers, [], openAlexTopics).openAlexTopics;
     status.search = "success";
     if (papers.length === 0) {
       errors.push("OpenAlex returned no papers for this query. Try a broader topic or fewer Boolean operators.");
