@@ -12,7 +12,7 @@ import type { CodedPaper, CountValue, Paper, ReviewCodebook, ReviewRunResponse, 
 const reviewRunSchema = z.object({
   query: z.string().trim().min(2, "Enter a research topic or question."),
   researchQuestion: z.string().trim().optional(),
-  maxResults: z.number().int().min(1).max(2000).optional().default(2000),
+  maxResults: z.number().int().min(1).max(1000).optional().default(1000),
 });
 
 const defaultStatus = (): ReviewRunStatus => ({

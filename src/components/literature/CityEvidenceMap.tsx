@@ -62,10 +62,18 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         </div>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{mapData.length} mapped study areas/countries</span>
       </div>
-      <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[radial-gradient(circle_at_30%_20%,#e2e8f0_0,#f8fafc_35%,#f1f5f9_100%)]">
-        <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 100 100">
-          <path d="M7 38 C17 25 30 28 39 34 C48 21 65 23 78 32 C90 42 89 60 78 67 C65 75 49 71 39 63 C28 75 14 70 8 58 C3 49 3 44 7 38 Z" fill="white" opacity="0.78" />
-          <path d="M14 55 C25 50 33 53 39 60 M49 38 C55 34 63 35 70 42 M66 58 C72 61 79 61 86 57" fill="none" stroke="#cbd5e1" strokeLinecap="round" strokeWidth="0.5" />
+      <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[#dbeafe]">
+        <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 1000 500">
+          <rect width="1000" height="500" fill="#dbeafe" />
+          <path d="M130 95 L210 70 L300 100 L330 150 L295 205 L235 220 L220 285 L180 330 L130 305 L95 230 L60 190 L75 125 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M250 300 L315 330 L335 390 L300 465 L255 445 L235 375 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M430 85 L515 70 L610 95 L610 145 L550 160 L500 145 L445 150 L390 130 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M475 150 L545 155 L575 210 L555 285 L520 360 L480 350 L455 280 L430 220 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M565 145 L700 105 L850 130 L925 205 L880 260 L760 250 L705 300 L635 270 L650 205 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M760 320 L855 340 L900 405 L835 450 L745 420 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          <path d="M480 105 L500 95 L520 110 L505 125 Z M535 135 L555 132 L570 145 L545 150 Z M615 295 L635 292 L648 305 L625 315 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          {[125, 250, 375].map((y) => <line key={y} x1="0" x2="1000" y1={y} y2={y} stroke="#bfdbfe" strokeDasharray="6 8" strokeWidth="1" />)}
+          {[125, 250, 375, 500, 625, 750, 875].map((x) => <line key={x} x1={x} x2={x} y1="0" y2="500" stroke="#bfdbfe" strokeDasharray="6 8" strokeWidth="1" />)}
         </svg>
         {mapData.length > 0 ? (
           mapData.map((item) => {

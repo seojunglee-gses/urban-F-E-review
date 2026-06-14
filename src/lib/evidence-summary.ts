@@ -31,7 +31,7 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     increment(countryCounts, paper.geoMention?.country ?? (paper.geoMention?.locationRole === "unknown" ? "No study area" : undefined));
     increment(regionCounts, paper.geoMention?.region);
     increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
-    increment(incomeGroupCounts, paper.geoMention?.incomeGroup ?? "Unknown");
+    increment(incomeGroupCounts, paper.geoMention?.country ? paper.geoMention.incomeGroup ?? "Country needs income lookup" : "No study-area country");
     increment(primaryTopicCounts, paper.primaryTopic ?? "No primary topic");
   });
   codedPapers.forEach((codedPaper) => {
@@ -49,7 +49,10 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     countries: topCounts(countryCounts),
     regions: topCounts(regionCounts),
     climateZones: topCounts(climateZoneCounts),
-    incomeGroups: incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
+    incomeGroups: [
+      ...incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
+      ...topCounts(incomeGroupCounts).filter((item) => !(incomeGroupDisplayOrder() as string[]).includes(item.name)),
+    ],
     locationRoles: topCounts(locationRoleCounts),
     spatialScales: topCounts(scaleCounts),
     openAlexTopics: topCounts(primaryTopicCounts, 10).length ? topCounts(primaryTopicCounts, 10) : openAlexTopics,

@@ -1,4 +1,5 @@
 import { reconstructAbstract } from "./abstract";
+import { enrichClimateContexts } from "./geo/climateContext";
 import { extractStudyAreaMention } from "./geo/extractStudyArea";
 import { getIncomeGroupForCountryWithLlmFallback } from "./geo/incomeGroups";
 import type { CountValue, OpenAlexWork, Paper } from "../types/review";
@@ -104,6 +105,9 @@ const enrichIncomeGroups = async (papers: Paper[]): Promise<Paper[]> =>
     }),
   );
 
+const enrichGeoContext = async (papers: Paper[]): Promise<Paper[]> =>
+  enrichClimateContexts(await enrichIncomeGroups(papers));
+
 export const searchOpenAlexWorks = async ({
   query,
   maxResults,
@@ -136,7 +140,7 @@ export const searchOpenAlexWorks = async ({
     if (!nextCursor || nextCursor === cursor || asArray(payload.results).length === 0) break;
     cursor = nextCursor;
   }
-  return enrichIncomeGroups(papers);
+  return enrichGeoContext(papers);
 };
 
 export const getOpenAlexTopicGroups = async ({
