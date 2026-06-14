@@ -45,7 +45,13 @@ const deriveKeywords = (query: string): string[] =>
     .filter((term) => term.length > 3)
     .slice(0, 12);
 
+const LLM_CODING_LIMIT = 50;
+
 const codePapers = async (papers: Paper[], codebook: ReviewCodebook, errors: string[]): Promise<CodedPaper[]> => {
+  if (papers.length > LLM_CODING_LIMIT) {
+    errors.push(`Large result set detected (${papers.length} papers). To avoid request timeouts, all papers were coded with the deterministic fallback; narrow the query for per-paper LLM coding.`);
+    return papers.map((paper) => codePaperDeterministically(paper, codebook));
+  }
   const coded: CodedPaper[] = [];
   for (const paper of papers) {
     try {
