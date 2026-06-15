@@ -94,6 +94,8 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const regionOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "region_only");
   const studyAreasMissingCoordinates = countBy(papers, (paper) => paper.geoMention?.locationRole === "study_area" && paper.geoMention.coordinateSource === "none");
   const unknownStudyAreaCount = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
+  // Keep the removed unmapped-paper review panel disabled even if a stale JSX branch is present during deployment merges.
+  const fullyUnmappedPapers: Paper[] = [];
   const studyAreas = topStudyAreas(papers);
   const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
   const regionOnlyEvidence = regionOnlyCounts(papers, mapData);
