@@ -16,6 +16,10 @@ interface CityEvidenceMapProps {
 const maxCount = (items: MapDataItem[]): number => Math.max(1, ...items.map((item) => item.paperCount));
 const projectLon = (lon: number): number => ((lon + 180) / 360) * 100;
 const projectLat = (lat: number): number => ((90 - lat) / 180) * 100;
+const projectSvgX = (lon: number): number => projectLon(lon) * 10;
+const projectSvgY = (lat: number): number => projectLat(lat) * 5;
+
+const regionClipId = (regionName: string, index: number): string => `region-overlay-${regionName.toLowerCase().replace(/[^a-z0-9]+/g, "-")}-${index}`;
 
 const countBy = (papers: Paper[], predicate: (paper: Paper) => boolean): number => papers.filter(predicate).length;
 
@@ -114,13 +118,29 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           {WORLD_LAND_RINGS.map((ring, index) => (
             <path key={index} d={worldRingToSvgPath(ring)} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
           ))}
+          <defs>
+            {REGION_OVERLAY_SHAPES.flatMap((shape) =>
+              shape.bounds.map((bounds, index) => {
+                const x = projectSvgX(bounds.lonMin);
+                const y = projectSvgY(bounds.latMax);
+                const width = projectSvgX(bounds.lonMax) - x;
+                const height = projectSvgY(bounds.latMin) - y;
+                return <clipPath id={regionClipId(shape.name, index)} key={regionClipId(shape.name, index)}><rect height={height} width={width} x={x} y={y} /></clipPath>;
+              }),
+            )}
+          </defs>
           {REGION_OVERLAY_SHAPES.map((shape) => {
             const region = regionOnlyEvidence.find((item) => item.name === shape.name);
             if (!region) return null;
             return (
-              <g key={shape.name}>
-                <path d={shape.path} fill="#14b8a6" fillOpacity="0.18" stroke="#0f766e" strokeDasharray="8 6" strokeOpacity="0.55" strokeWidth="2" />
-                <text x={shape.labelX} y={shape.labelY} className="fill-teal-900 text-[18px] font-bold">{region.count}</text>
+              <g key={shape.name} pointerEvents="none">
+                {shape.bounds.map((_, boundsIndex) => (
+                  <g clipPath={`url(#${regionClipId(shape.name, boundsIndex)})`} key={regionClipId(shape.name, boundsIndex)}>
+                    {WORLD_LAND_RINGS.map((ring, ringIndex) => (
+                      <path key={`${boundsIndex}-${ringIndex}`} d={worldRingToSvgPath(ring)} fill="#14b8a6" fillOpacity="0.2" stroke="#0f766e" strokeOpacity="0.45" strokeWidth="2" />
+                    ))}
+                  </g>
+                ))}
               </g>
             );
           })}
@@ -130,9 +150,9 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           if (!shape) return null;
           const active = activeRegion === region.name;
           return (
-            <button key={region.name} className="absolute z-[5] -translate-x-1/2 -translate-y-1/2 rounded-full border border-teal-700/40 bg-teal-500/20 px-3 py-1 text-[11px] font-bold text-teal-950 shadow-sm backdrop-blur-sm" style={{ left: `${shape.labelX / 10}%`, top: `${shape.labelY / 5}%` }} type="button" onClick={(event) => { event.stopPropagation(); setActiveLocationKey(null); setActiveRegion(region.name); }}>
-              Region-only evidence · {region.count}
-              <div className={`${active ? "block" : "hidden"} absolute left-1/2 top-full z-20 mt-2 w-64 -translate-x-1/2 rounded-2xl border border-teal-200 bg-white p-3 text-left text-xs font-medium text-slate-600 shadow-xl`}>
+            <button aria-label={`Open region-only evidence for ${region.name}`} key={region.name} className="absolute z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-teal-700/50 bg-teal-600/85 text-[11px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-teal-500/10 backdrop-blur-sm" style={{ left: `${projectLon(shape.labelLon)}%`, top: `${projectLat(shape.labelLat)}%` }} type="button" onClick={(event) => { event.stopPropagation(); setActiveLocationKey(null); setActiveRegion(region.name); }}>
+              {region.count}
+              <div className={`${active ? "block" : "hidden"} pointer-events-auto absolute left-1/2 top-full z-[90] mt-2 w-64 -translate-x-1/2 rounded-2xl border border-teal-200 bg-white p-3 text-left text-xs font-medium text-slate-600 shadow-2xl`}>
                 <div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-slate-900">Region-only evidence</p><p className="mt-1"><span className="font-semibold">Region:</span> {region.name}</p><p><span className="font-semibold">Papers:</span> {region.count}</p></div><span className="text-slate-400">×</span></div>
               </div>
             </button>
@@ -143,9 +163,9 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
             const size = 18 + (item.paperCount / maximum) * 34;
             const active = activeLocationKey === item.locationKey;
             return (
-              <div key={item.locationKey} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.renderLon)}%`, top: `${projectLat(item.renderLat)}%` }} onClick={(event) => { event.stopPropagation(); setActiveLocationKey(item.locationKey); }}>
+              <div key={item.locationKey} className="group absolute z-30 -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.renderLon)}%`, top: `${projectLat(item.renderLat)}%` }} onClick={(event) => { event.stopPropagation(); setActiveLocationKey(item.locationKey); }}>
                 <button aria-label={`Open details for ${item.locationKey}`} className="flex items-center justify-center rounded-full border border-white/80 bg-[var(--primary)]/80 text-[10px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-[var(--primary)]/10" style={{ width: size, height: size }} type="button">{item.paperCount}</button>
-                <div className={`${active ? "block" : "hidden group-hover:block"} absolute left-1/2 top-full z-10 mt-2 w-72 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl`} onClick={(event) => event.stopPropagation()}>
+                <div className={`${active ? "block" : "hidden group-hover:block"} absolute left-1/2 top-full z-[90] mt-2 w-72 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl`} onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 text-slate-600">
                       {item.country ? <p><span className="font-semibold text-slate-900">Country:</span> {item.country}</p> : null}
