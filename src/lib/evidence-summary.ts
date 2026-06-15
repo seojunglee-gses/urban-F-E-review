@@ -1,5 +1,6 @@
 import { incomeGroupDisplayOrder } from "./geo/incomeGroups";
 import { isValidStudyAreaCity } from "./geo/locationDisplay";
+import { enrichCodesWithResolvedLocation } from "./geo/resolveStudyLocation";
 import type { ChartData, CodedPaper, CountValue, EvidenceSummary, GapMapItem, Paper } from "../types/review";
 
 const increment = (counts: Record<string, number>, key: string | undefined): void => {
@@ -27,18 +28,20 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
   const scaleCounts: Record<string, number> = {};
   const primaryTopicCounts: Record<string, number> = {};
 
+  const codedByPaper = new Map(codedPapers.map((codedPaper) => [codedPaper.paperId, codedPaper]));
   papers.forEach((paper) => {
+    const resolved = codedByPaper.get(paper.id) ? enrichCodesWithResolvedLocation(codedByPaper.get(paper.id)!.codes).resolvedLocation : undefined;
     increment(yearCounts, String(paper.year ?? "unknown"));
-    increment(locationRoleCounts, paper.geoMention?.locationRole ?? "unknown");
-    const countries = paper.studyAreaCountries?.length ? paper.studyAreaCountries : paper.geoMention?.country ? [paper.geoMention.country] : [];
-    const regions = paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
-    const candidateCities = paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
+    increment(locationRoleCounts, resolved && resolved.matchLevel !== "unresolved" ? resolved.matchLevel : paper.geoMention?.locationRole ?? "unknown");
+    const countries = resolved?.country ? [resolved.country] : paper.studyAreaCountries?.length ? paper.studyAreaCountries : paper.geoMention?.country ? [paper.geoMention.country] : [];
+    const regions = resolved?.region ? [resolved.region] : paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
+    const candidateCities = resolved?.city ? [resolved.city] : paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
     const cities = candidateCities.filter(isValidStudyAreaCity);
     (countries.length ? countries : [paper.geoMention?.locationRole === "unknown" ? "No study-area country" : undefined]).forEach((country) => increment(countryCounts, country));
     (regions.length ? regions : [undefined]).forEach((region) => increment(regionCounts, region));
     cities.forEach((city) => increment(cityCounts, city));
-    increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
-    increment(incomeGroupCounts, paper.geoMention?.country ? paper.geoMention.incomeGroup ?? "Country needs income lookup" : "No study-area country");
+    increment(climateZoneCounts, resolved?.climateContext ?? paper.geoMention?.climateZone ?? "Unknown climate zone");
+    increment(incomeGroupCounts, resolved?.country ? resolved.incomeGroup ?? "Country needs income lookup" : paper.geoMention?.country ? paper.geoMention.incomeGroup ?? "Country needs income lookup" : "No study-area country");
     increment(primaryTopicCounts, paper.primaryTopic ?? "No primary topic");
   });
   codedPapers.forEach((codedPaper) => {
@@ -142,7 +145,10 @@ export const buildGapMap = (codedPapers: CodedPaper[], chartData: ChartData): Ga
   const scales = chartData.spatialScales.map((item) => item.name);
   const countries = chartData.countries.map((item) => item.name);
   const formOutcome = countPair(codedPapers, (paper) => paper.codes.urbanFormVariables, (paper) => paper.codes.energyOutcomes);
-  const countryOutcome = countPair(codedPapers, (paper) => [paper.codes.country], (paper) => paper.codes.energyOutcomes);
+  const countryOutcome = countPair(codedPapers, (paper) => {
+    const resolved = enrichCodesWithResolvedLocation(paper.codes).resolvedLocation;
+    return [resolved.country ?? resolved.region ?? paper.codes.country];
+  }, (paper) => paper.codes.energyOutcomes);
   const scaleMethod = countPair(codedPapers, (paper) => [paper.codes.spatialScale], (paper) => [paper.codes.method]);
   const gaps = [
     ...buildGapItems({ dimensionA: "urban form variable", valuesA: urbanForms, dimensionB: "energy outcome", valuesB: outcomes, counts: formOutcome }),

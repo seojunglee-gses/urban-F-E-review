@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 
 import { isKnownLocationValue, isValidStudyAreaCity } from "../../lib/geo/locationDisplay";
+import { enrichCodesWithResolvedLocation } from "../../lib/geo/resolveStudyLocation";
 import { regionForCountry } from "../../lib/geo/worldRegions";
 import type { CodedPaper, Paper } from "../../types/review";
 import { descriptionText, titleText } from "./dashboardShared";
@@ -13,12 +14,22 @@ interface RecordsTableProps {
 export const RecordsTable = ({ papers, codedPapers }: RecordsTableProps) => {
   const [filter, setFilter] = useState("");
   const codedById = useMemo(() => new Map(codedPapers.map((coded) => [coded.paperId, coded])), [codedPapers]);
-  const visible = papers.filter((paper) => `${paper.title} ${paper.journal ?? ""} ${paper.geoMention?.city ?? ""} ${paper.geoMention?.country ?? ""} ${paper.geoMention?.region ?? ""}`.toLowerCase().includes(filter.toLowerCase()));
+  const visible = papers.filter((paper) => {
+    const coded = codedById.get(paper.id);
+    const resolved = coded ? enrichCodesWithResolvedLocation(coded.codes).resolvedLocation : undefined;
+    return `${paper.title} ${paper.journal ?? ""} ${resolved?.city ?? ""} ${resolved?.country ?? ""} ${resolved?.region ?? ""} ${paper.geoMention?.city ?? ""} ${paper.geoMention?.country ?? ""} ${paper.geoMention?.region ?? ""}`.toLowerCase().includes(filter.toLowerCase());
+  });
   const formatStudyArea = (paper: Paper): string => {
+    const coded = codedById.get(paper.id);
+    const resolved = coded ? enrichCodesWithResolvedLocation(coded.codes).resolvedLocation : undefined;
+    if (resolved?.city) return resolved.city;
+    if (resolved?.country) return resolved.country;
+    if (resolved?.region) return resolved.region;
+    const meaningfulStudyLocation = coded?.codes.studyLocation && !["unclear", "unknown"].includes(coded.codes.studyLocation.toLowerCase()) ? coded.codes.studyLocation : undefined;
     const city = isValidStudyAreaCity(paper.geoMention?.city) ? paper.geoMention?.city?.trim() : undefined;
     const country = isKnownLocationValue(paper.geoMention?.country) ? paper.geoMention?.country?.trim() : paper.studyAreaCountries?.find(isKnownLocationValue);
     const region = isKnownLocationValue(paper.geoMention?.region) ? paper.geoMention?.region?.trim() : paper.studyAreaRegions?.find(isKnownLocationValue) ?? regionForCountry(country);
-    return city ?? country ?? region ?? "unknown";
+    return city ?? country ?? region ?? meaningfulStudyLocation ?? "unknown";
   };
   return (
     <section>

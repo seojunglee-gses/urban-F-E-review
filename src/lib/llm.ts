@@ -2,6 +2,7 @@ import OpenAI from "openai";
 
 import { buildFallbackCodebook } from "./codebook";
 import { codePaperDeterministically } from "./paper-coding";
+import { enrichCodesWithResolvedLocation } from "./geo/resolveStudyLocation";
 import type { CodedPaper, CodebookVariable, Paper, ReviewCodebook } from "../types/review";
 
 const extractJsonObject = (content: string): unknown => {
@@ -70,7 +71,7 @@ export const generateCodebookWithLlm = async ({
       {
         role: "system",
         content:
-          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping, including study-area city, country, and income group. For location extraction, instruct coders to output city and country names in English, use reference-style place names when clear, include normalizedPlaceName as \"City, Country\" when possible, never generate latitude/longitude, and never force vague regions, metropolitan areas, or ambiguous places into a city. Income group must be populated by the application lookup, not guessed by the model.",
+          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping. For location extraction, instruct coders to extract only studyLocation. When extracting studyLocation, prefer canonical location names that exist in src/data/locationReference.json. Do not invent city names. If only a country or region is evident, return only that country or region. The application will fill parent fields using the reference file. Never generate latitude/longitude. Income group must be populated by the application lookup, not guessed by the model.",
       },
       {
         role: "user",
@@ -93,7 +94,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       {
         role: "system",
         content:
-          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries. Output city and country names in English and use the closest reference-style city/country names when the study area clearly corresponds to a city. Use normalizedPlaceName in \"City, Country\" form when possible. Do not generate latitude or longitude, and do not force regions, metropolitan areas, vague places, or ambiguous locations into a city. Do not guess income group; it is assigned only by application lookup from the study-area country.",
+          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries. When extracting studyLocation, prefer canonical location names that exist in src/data/locationReference.json. Do not invent city names. If only a country or region is evident, return only that country or region. The application will fill parent fields using the reference file. Do not generate latitude or longitude, and do not force regions, metropolitan areas, vague places, or ambiguous locations into a city. Do not guess income group; it is assigned only by application lookup from the study-area country.",
       },
       { role: "user", content: JSON.stringify({ paper: { id: paper.id, title: paper.title, abstract: paper.abstract, year: paper.year, concepts: paper.concepts, geoMention: paper.geoMention }, codebook }) },
     ],
@@ -105,7 +106,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
     paperId: String(parsed.paperId ?? paper.id),
     include: Boolean(parsed.include),
     exclusionReason: typeof parsed.exclusionReason === "string" ? parsed.exclusionReason : null,
-    codes: {
+    codes: enrichCodesWithResolvedLocation({
       urbanFormVariables: asStringArray(codes.urbanFormVariables),
       energyOutcomes: asStringArray(codes.energyOutcomes),
       method: String(codes.method ?? "unclear"),
@@ -116,7 +117,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       buildingType: String(codes.buildingType ?? "unclear"),
       keyFinding: String(codes.keyFinding ?? "unclear"),
       evidenceStrength: ["low", "medium", "high", "unclear"].includes(String(codes.evidenceStrength)) ? (String(codes.evidenceStrength) as "low" | "medium" | "high" | "unclear") : "unclear",
-    },
+    }),
     confidence: Number.isFinite(confidence) ? Math.max(0, Math.min(1, confidence)) : 0.5,
     needsManualReview: Boolean(parsed.needsManualReview) || confidence < 0.6,
   };
