@@ -171,7 +171,8 @@ export const searchOpenAlexWorks = async ({
   query: string;
   maxResults: number;
 }): Promise<Paper[]> => {
-  const limit = Math.min(Math.max(maxResults, 1), 1000);
+  const limit = Math.min(Math.max(maxResults, 1), 1500);
+  // OpenAlex caps a single cursor page at 200; total review results are capped separately by `limit`.
   const perPage = 200;
   const papers: Paper[] = [];
   let cursor = "*";

@@ -78,7 +78,7 @@ export const useReviewPipeline = () => {
       const response = await fetch("/api/review/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, researchQuestion: query, maxResults: 1000 }),
+        body: JSON.stringify({ query, researchQuestion: query, maxResults: 1500 }),
       });
       const review = await parseResponse(response);
       setActiveProgressIndex(REVIEW_PROGRESS_LABELS.length - 1);
