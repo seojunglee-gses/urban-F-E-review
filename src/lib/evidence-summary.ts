@@ -1,4 +1,5 @@
 import { incomeGroupDisplayOrder } from "./geo/incomeGroups";
+import { isValidStudyAreaCity } from "./geo/locationDisplay";
 import type { ChartData, CodedPaper, CountValue, EvidenceSummary, GapMapItem, Paper } from "../types/review";
 
 const increment = (counts: Record<string, number>, key: string | undefined): void => {
@@ -18,19 +19,27 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
   const energyCounts: Record<string, number> = {};
   const methodCounts: Record<string, number> = {};
   const countryCounts: Record<string, number> = {};
+  const cityCounts: Record<string, number> = {};
   const regionCounts: Record<string, number> = {};
   const climateZoneCounts: Record<string, number> = {};
   const incomeGroupCounts: Record<string, number> = Object.fromEntries(incomeGroupDisplayOrder().map((group) => [group, 0]));
   const locationRoleCounts: Record<string, number> = {};
   const scaleCounts: Record<string, number> = {};
+  const primaryTopicCounts: Record<string, number> = {};
 
   papers.forEach((paper) => {
     increment(yearCounts, String(paper.year ?? "unknown"));
     increment(locationRoleCounts, paper.geoMention?.locationRole ?? "unknown");
-    increment(countryCounts, paper.geoMention?.country ?? (paper.geoMention?.locationRole === "unknown" ? "No study area" : undefined));
-    increment(regionCounts, paper.geoMention?.region);
+    const countries = paper.studyAreaCountries?.length ? paper.studyAreaCountries : paper.geoMention?.country ? [paper.geoMention.country] : [];
+    const regions = paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
+    const candidateCities = paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
+    const cities = candidateCities.filter(isValidStudyAreaCity);
+    (countries.length ? countries : [paper.geoMention?.locationRole === "unknown" ? "No study-area country" : undefined]).forEach((country) => increment(countryCounts, country));
+    (regions.length ? regions : [undefined]).forEach((region) => increment(regionCounts, region));
+    cities.forEach((city) => increment(cityCounts, city));
     increment(climateZoneCounts, paper.geoMention?.climateZone ?? "Unknown climate zone");
-    increment(incomeGroupCounts, paper.geoMention?.incomeGroup ?? "Unknown");
+    increment(incomeGroupCounts, paper.geoMention?.country ? paper.geoMention.incomeGroup ?? "Country needs income lookup" : "No study-area country");
+    increment(primaryTopicCounts, paper.primaryTopic ?? "No primary topic");
   });
   codedPapers.forEach((codedPaper) => {
     codedPaper.codes.urbanFormVariables.forEach((value) => increment(urbanFormCounts, value));
@@ -45,12 +54,16 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     energyOutcomes: topCounts(energyCounts),
     methods: topCounts(methodCounts),
     countries: topCounts(countryCounts),
+    cities: topCounts(cityCounts),
     regions: topCounts(regionCounts),
     climateZones: topCounts(climateZoneCounts),
-    incomeGroups: incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
+    incomeGroups: [
+      ...incomeGroupDisplayOrder().map((name) => ({ name, count: incomeGroupCounts[name] ?? 0 })),
+      ...topCounts(incomeGroupCounts).filter((item) => !(incomeGroupDisplayOrder() as string[]).includes(item.name)),
+    ],
     locationRoles: topCounts(locationRoleCounts),
     spatialScales: topCounts(scaleCounts),
-    openAlexTopics,
+    openAlexTopics: topCounts(primaryTopicCounts, 10).length ? topCounts(primaryTopicCounts, 10) : openAlexTopics,
   };
 };
 

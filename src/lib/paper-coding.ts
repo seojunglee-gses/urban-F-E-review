@@ -69,7 +69,7 @@ export const codePaperDeterministically = (paper: Paper, codebook: ReviewCodeboo
       energyOutcomes,
       method,
       spatialScale,
-      climateContext: includesAny(text, ["tropical"]) ? "tropical" : includesAny(text, ["cold"]) ? "cold" : includesAny(text, ["mediterranean"]) ? "Mediterranean" : "unclear",
+      climateContext: paper.geoMention?.climateZone ?? (includesAny(text, ["tropical"]) ? "tropical" : includesAny(text, ["cold"]) ? "cold" : includesAny(text, ["mediterranean"]) ? "Mediterranean" : "unclear"),
       studyLocation,
       country,
       buildingType: includesAny(text, ["residential"]) ? "residential" : includesAny(text, ["office", "commercial"]) ? "commercial" : "unclear",
