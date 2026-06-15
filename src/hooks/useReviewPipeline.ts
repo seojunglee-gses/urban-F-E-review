@@ -29,7 +29,14 @@ export const REVIEW_PROGRESS_LABELS = [
 const defaultQuery = "urban form and building energy consumption";
 
 const parseResponse = async (response: Response): Promise<ReviewRunResponse> => {
-  const payload = (await response.json()) as unknown;
+  const raw = await response.text();
+  let payload: unknown;
+  try {
+    payload = raw ? (JSON.parse(raw) as unknown) : null;
+  } catch {
+    const message = raw.trim() || "Review pipeline returned a non-JSON response.";
+    throw new Error(message.length > 300 ? `${message.slice(0, 300)}…` : message);
+  }
   if (!response.ok) {
     const message = typeof payload === "object" && payload !== null && "error" in payload ? String((payload as { error: unknown }).error) : "Review pipeline failed.";
     throw new Error(message);
@@ -69,7 +76,7 @@ export const useReviewPipeline = () => {
       const response = await fetch("/api/review/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, researchQuestion: query }),
+        body: JSON.stringify({ query, researchQuestion: query, maxResults: 1000 }),
       });
       const review = await parseResponse(response);
       setResult(review);
