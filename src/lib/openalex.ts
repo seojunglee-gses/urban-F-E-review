@@ -58,6 +58,14 @@ const getPrimaryTopic = (work: OpenAlexWork): string | null => {
 
 const hasUsableAbstract = (paper: Paper): boolean => Boolean(paper.abstract?.trim());
 
+const openAlexSearchFilterValue = (query: string): string => {
+  // Keep OpenAlex search terms inside title/abstract so counts match abstract-level screening expectations.
+  // Commas delimit OpenAlex filter clauses, so normalize them before adding the search filter.
+  const titleAbstractQuery = query.replace(/,/g, " ").replace(/\s+/g, " ").trim();
+  const filters = ["has_abstract:true", "type:article", "from_publication_date:2010-01-01"];
+  if (titleAbstractQuery) filters.push(`title_and_abstract.search:${titleAbstractQuery}`);
+  return filters.join(",");
+};
 
 const RETRYABLE_OPENALEX_STATUSES = new Set([429, 500, 502, 503, 504]);
 
@@ -178,10 +186,9 @@ export const searchOpenAlexWorks = async ({
   let cursor = "*";
   while (papers.length < limit) {
     const url = new URL("https://api.openalex.org/works");
-    url.searchParams.set("search", query);
     url.searchParams.set("per-page", String(Math.min(perPage, limit - papers.length)));
     url.searchParams.set("cursor", cursor);
-    url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
+    url.searchParams.set("filter", openAlexSearchFilterValue(query));
     const mailto = process.env.OPENALEX_MAILTO;
     if (mailto) url.searchParams.set("mailto", mailto);
 
@@ -206,8 +213,7 @@ export const getOpenAlexTopicGroups = async ({
   query: string;
 }): Promise<CountValue[]> => {
   const url = new URL("https://api.openalex.org/works");
-  url.searchParams.set("search", query);
-  url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
+  url.searchParams.set("filter", openAlexSearchFilterValue(query));
   url.searchParams.set("group_by", "primary_topic.id");
   const mailto = process.env.OPENALEX_MAILTO;
   if (mailto) url.searchParams.set("mailto", mailto);
