@@ -1,6 +1,5 @@
 import type { ReviewRunResponse } from "../../types/review";
 import { descriptionText, innerPanel, majorCard, titleText, topItems } from "./dashboardShared";
-import { ResearchGapsPanel } from "./ResearchGapsPanel";
 
 interface InsightSidebarProps {
   result: ReviewRunResponse | null;
@@ -8,16 +7,11 @@ interface InsightSidebarProps {
 
 export const InsightSidebar = ({ result }: InsightSidebarProps) => {
   const summary = result?.evidenceSummary;
-  const countries = topItems(result?.chartData.countries ?? [], 5);
   const climateZones = topItems(result?.chartData.climateZones ?? [], 4);
   const incomeGroups = result?.chartData.incomeGroups ?? [];
-  const maxCountry = Math.max(1, ...countries.map((item) => item.count));
   const maxClimate = Math.max(1, ...climateZones.map((item) => item.count));
   const maxIncome = Math.max(1, ...incomeGroups.map((item) => item.count));
-  const quickSignals = [
-    ...(result?.chartData.urbanFormVariables.slice(0, 2) ?? []),
-    ...(result?.chartData.energyOutcomes.slice(0, 2) ?? []),
-  ];
+  const quickSignals = result?.chartData.openAlexTopics.slice(0, 6) ?? [];
   const maxSignal = Math.max(1, ...quickSignals.map((item) => item.count));
   const cards = [
     ["Papers", summary?.totalPapers ?? result?.papers.length ?? 0],
@@ -38,21 +32,6 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
             </div>
           ))}
         </div>
-      </section>
-      <section className={majorCard}>
-        <h2 className={titleText}>Study-area countries</h2>
-        {countries.length ? (
-          <div className="mt-4 space-y-3">
-            {countries.map((country) => (
-              <div key={country.name}>
-                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{country.name}</span><span>{country.count}</span></div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-400" style={{ width: `${(country.count / maxCountry) * 100}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={`${descriptionText} mt-3`}>Study-area country counts appear when title/abstract text contains clear locations.</p>
-        )}
       </section>
       <section className={majorCard}>
         <h2 className={titleText}>Climate context</h2>
@@ -96,10 +75,9 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className={`${descriptionText} mt-3`}>Urban-form and energy-outcome signals appear after LLM coding.</p>
+          <p className={`${descriptionText} mt-3`}>OpenAlex primary-topic signals appear after search.</p>
         )}
       </section>
-      <ResearchGapsPanel gaps={result?.gapMap ?? []} compact />
     </aside>
   );
 };
