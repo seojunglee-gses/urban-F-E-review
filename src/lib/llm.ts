@@ -110,7 +110,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       energyOutcomes: asStringArray(codes.energyOutcomes),
       method: String(codes.method ?? "unclear"),
       spatialScale: String(codes.spatialScale ?? "unclear"),
-      climateContext: String(codes.climateContext ?? "unclear"),
+      climateContext: paper.geoMention?.climateZone ?? String(codes.climateContext ?? "unclear"),
       studyLocation: String(codes.studyLocation ?? "unclear"),
       country: String(codes.country ?? paper.geoMention?.country ?? "unclear"),
       buildingType: String(codes.buildingType ?? "unclear"),
