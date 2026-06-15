@@ -1,7 +1,7 @@
-import { getIncomeGroupForCountry } from "./incomeGroups";
+import { getIncomeGroupForCountry, incomeGroupCountryNames, resolveCountryToCanonicalName } from "./incomeGroups";
 import type { GeoMention, LocationRole } from "../../types/review";
 
-const COUNTRY_NAMES = [
+const COMMON_COUNTRY_NAMES = [
   "Australia",
   "Brazil",
   "Canada",
@@ -20,6 +20,7 @@ const COUNTRY_NAMES = [
   "United Kingdom",
   "United States",
 ] as const;
+const COUNTRY_NAMES = [...COMMON_COUNTRY_NAMES, ...incomeGroupCountryNames()].sort((a, b) => b.length - a.length);
 
 const REGION_NAMES = ["Africa", "Asia", "Europe", "Latin America", "North America", "Oceania", "South America", "Southeast Asia"] as const;
 
@@ -41,8 +42,24 @@ const cleanLocation = (value: string): string =>
     .replace(/\b(?:city|cities|urban areas?|metropolitan areas?|neighborhoods?|districts?)\b$/i, "")
     .trim();
 
-const findCountry = (text: string): string | undefined =>
-  COUNTRY_NAMES.find((country) => new RegExp(`\\b${country.replace(/ /g, "\\s+")}\\b`, "i").test(text));
+const findCountry = (text: string): string | undefined => {
+  const found = COUNTRY_NAMES.find((country) => new RegExp(`\\b${country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+")}\\b`, "i").test(text));
+  return resolveCountryToCanonicalName(found) ?? found;
+};
+
+export const extractStudyAreaCountries = (text: string): string[] =>
+  Array.from(
+    new Set(
+      COUNTRY_NAMES.filter((country) => new RegExp(`\\b${country.replace(/[.*+?^${}()|[\]\\]/g, "\\$&").replace(/ /g, "\\s+")}\\b`, "i").test(text))
+        .map((country) => resolveCountryToCanonicalName(country) ?? country),
+    ),
+  );
+
+export const splitStudyAreaCities = (city?: string): string[] =>
+  city
+    ?.split(/\s*,\s*|\s+and\s+/i)
+    .map((value) => value.trim())
+    .filter((value) => value.length > 1) ?? [];
 
 const findRegion = (text: string): string | undefined =>
   REGION_NAMES.find((region) => new RegExp(`\\b${region.replace(/ /g, "\\s+")}\\b`, "i").test(text));

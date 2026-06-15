@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 
+import { isKnownLocationValue, isValidStudyAreaCity } from "../../lib/geo/locationDisplay";
+import { regionForCountry } from "../../lib/geo/worldRegions";
 import type { CodedPaper, Paper } from "../../types/review";
 import { descriptionText, titleText } from "./dashboardShared";
 
@@ -12,7 +14,12 @@ export const RecordsTable = ({ papers, codedPapers }: RecordsTableProps) => {
   const [filter, setFilter] = useState("");
   const codedById = useMemo(() => new Map(codedPapers.map((coded) => [coded.paperId, coded])), [codedPapers]);
   const visible = papers.filter((paper) => `${paper.title} ${paper.journal ?? ""} ${paper.geoMention?.city ?? ""} ${paper.geoMention?.country ?? ""} ${paper.geoMention?.region ?? ""}`.toLowerCase().includes(filter.toLowerCase()));
-  const formatStudyArea = (paper: Paper): string => [paper.geoMention?.city, paper.geoMention?.country, paper.geoMention?.region].filter(Boolean).join(", ") || paper.geoMention?.locationRole || "unknown";
+  const formatStudyArea = (paper: Paper): string => {
+    const city = isValidStudyAreaCity(paper.geoMention?.city) ? paper.geoMention?.city?.trim() : undefined;
+    const country = isKnownLocationValue(paper.geoMention?.country) ? paper.geoMention?.country?.trim() : paper.studyAreaCountries?.find(isKnownLocationValue);
+    const region = isKnownLocationValue(paper.geoMention?.region) ? paper.geoMention?.region?.trim() : paper.studyAreaRegions?.find(isKnownLocationValue) ?? regionForCountry(country);
+    return city ?? country ?? region ?? "unknown";
+  };
   return (
     <section>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

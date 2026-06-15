@@ -1,29 +1,45 @@
-import type { ReviewRunResponse } from "../../types/review";
-import { descriptionText, innerPanel, majorCard, titleText, topItems } from "./dashboardShared";
-import { ResearchGapsPanel } from "./ResearchGapsPanel";
+import { isKnownLocationValue } from "../../lib/geo/locationDisplay";
+import { regionForCountry } from "../../lib/geo/worldRegions";
+import type { Paper, ReviewRunResponse } from "../../types/review";
+import { descriptionText, innerPanel, majorCard, titleText } from "./dashboardShared";
 
 interface InsightSidebarProps {
   result: ReviewRunResponse | null;
 }
 
+const hasMappedMarker = (paper: Paper, mappedPaperIds: Set<string>): boolean => mappedPaperIds.has(paper.id);
+
+const regionCounts = (papers: Paper[]): Array<{ name: string; count: number }> => {
+  const counts = new Map<string, Set<string>>();
+  const add = (region: string | undefined, paperId: string) => {
+    if (!isKnownLocationValue(region)) return;
+    if (!counts.has(region)) counts.set(region, new Set());
+    counts.get(region)!.add(paperId);
+  };
+  papers.forEach((paper) => {
+    const regions = paper.studyAreaRegions?.filter(isKnownLocationValue) ?? [];
+    if (regions.length) regions.forEach((region) => add(region, paper.id));
+    else add(paper.geoMention?.region ?? regionForCountry(paper.geoMention?.country ?? paper.studyAreaCountries?.[0]), paper.id);
+  });
+  return Array.from(counts.entries())
+    .map(([name, ids]) => ({ name, count: ids.size }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 6);
+};
+
 export const InsightSidebar = ({ result }: InsightSidebarProps) => {
-  const summary = result?.evidenceSummary;
-  const countries = topItems(result?.chartData.countries ?? [], 5);
-  const climateZones = topItems(result?.chartData.climateZones ?? [], 4);
-  const incomeGroups = result?.chartData.incomeGroups ?? [];
-  const maxCountry = Math.max(1, ...countries.map((item) => item.count));
-  const maxClimate = Math.max(1, ...climateZones.map((item) => item.count));
-  const maxIncome = Math.max(1, ...incomeGroups.map((item) => item.count));
-  const quickSignals = [
-    ...(result?.chartData.urbanFormVariables.slice(0, 2) ?? []),
-    ...(result?.chartData.energyOutcomes.slice(0, 2) ?? []),
-  ];
-  const maxSignal = Math.max(1, ...quickSignals.map((item) => item.count));
+  const mappedPaperIds = new Set(result?.mapData.flatMap((item) => item.papers) ?? []);
+  const countriesCovered = new Set(result?.mapData.map((item) => item.country).filter(isKnownLocationValue) ?? []).size;
+  const unmappedPapers = result?.papers.filter((paper) => !hasMappedMarker(paper, mappedPaperIds) && (!paper.geoMention || paper.geoMention.locationRole === "unknown")).length ?? 0;
+  const topicGroups = result?.chartData.openAlexTopics.slice(0, 6) ?? [];
+  const maxSignal = Math.max(1, ...topicGroups.map((item) => item.count));
+  const regions = regionCounts(result?.papers ?? []);
+  const maxRegion = Math.max(1, ...regions.map((item) => item.count));
   const cards = [
-    ["Papers", summary?.totalPapers ?? result?.papers.length ?? 0],
-    ["Included", summary?.includedPapers ?? 0],
-    ["Manual review", summary?.manualReviewCount ?? 0],
-    ["Markers", result?.mapData.length ?? 0],
+    ["Total papers", result?.evidenceSummary?.totalPapers ?? result?.papers.length ?? 0],
+    ["Mapped markers", result?.mapData.length ?? 0],
+    ["Countries covered", countriesCovered],
+    ["Unmapped papers", unmappedPapers],
   ] as const;
 
   return (
@@ -40,55 +56,25 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
         </div>
       </section>
       <section className={majorCard}>
-        <h2 className={titleText}>Study-area countries</h2>
-        {countries.length ? (
+        <h2 className={titleText}>Study-area regions</h2>
+        {regions.length ? (
           <div className="mt-4 space-y-3">
-            {countries.map((country) => (
-              <div key={country.name}>
-                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{country.name}</span><span>{country.count}</span></div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-400" style={{ width: `${(country.count / maxCountry) * 100}%` }} /></div>
+            {regions.map((region) => (
+              <div key={region.name}>
+                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{region.name}</span><span>{region.count}</span></div>
+                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-teal-500" style={{ width: `${(region.count / maxRegion) * 100}%` }} /></div>
               </div>
             ))}
           </div>
         ) : (
-          <p className={`${descriptionText} mt-3`}>Study-area country counts appear when title/abstract text contains clear locations.</p>
+          <p className={`${descriptionText} mt-3`}>Region paper counts appear after study-area locations are extracted.</p>
         )}
       </section>
       <section className={majorCard}>
-        <h2 className={titleText}>Climate context</h2>
-        {climateZones.length ? (
+        <h2 className={titleText}>Topic groups</h2>
+        {topicGroups.length ? (
           <div className="mt-4 space-y-3">
-            {climateZones.map((zone) => (
-              <div key={zone.name}>
-                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{zone.name}</span><span>{zone.count}</span></div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-400" style={{ width: `${(zone.count / maxClimate) * 100}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={`${descriptionText} mt-3`}>Unknown climate zone counts appear until reliable climate evidence is found.</p>
-        )}
-      </section>
-      <section className={majorCard}>
-        <h2 className={titleText}>Income groups</h2>
-        {incomeGroups.length ? (
-          <div className="mt-4 space-y-3">
-            {incomeGroups.map((group) => (
-              <div key={group.name}>
-                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{group.name}</span><span>{group.count}</span></div>
-                <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-500" style={{ width: `${(group.count / maxIncome) * 100}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={`${descriptionText} mt-3`}>Income group counts appear after the World Bank lookup runs.</p>
-        )}
-      </section>
-      <section className={majorCard}>
-        <h2 className={titleText}>Quick signals</h2>
-        {quickSignals.length ? (
-          <div className="mt-4 space-y-3">
-            {quickSignals.map((signal) => (
+            {topicGroups.map((signal) => (
               <div key={signal.name}>
                 <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{signal.name}</span><span>{signal.count}</span></div>
                 <div className="mt-1 h-2 rounded-full bg-slate-100"><div className="h-2 rounded-full bg-slate-500" style={{ width: `${(signal.count / maxSignal) * 100}%` }} /></div>
@@ -96,10 +82,9 @@ export const InsightSidebar = ({ result }: InsightSidebarProps) => {
             ))}
           </div>
         ) : (
-          <p className={`${descriptionText} mt-3`}>Urban-form and energy-outcome signals appear after LLM coding.</p>
+          <p className={`${descriptionText} mt-3`}>OpenAlex primary-topic signals appear after search.</p>
         )}
       </section>
-      <ResearchGapsPanel gaps={result?.gapMap ?? []} compact />
     </aside>
   );
 };

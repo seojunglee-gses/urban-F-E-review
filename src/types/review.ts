@@ -3,7 +3,7 @@ export type PipelineStepStatus = "success" | "skipped" | "failed";
 export type EvidenceStrength = "low" | "medium" | "high" | "unclear";
 export type LocationRole = "study_area" | "country_only" | "region_only" | "unknown";
 export type GeoMentionSource = "llm" | "title" | "abstract" | "geocoder" | "manual" | "unknown";
-export type CoordinateSource = "geocoding_api" | "map_library" | "none";
+export type CoordinateSource = "geocoding_api" | "map_library" | "worldcities" | "country_centroid" | "none";
 export type IncomeGroup = "Low income" | "Lower middle income" | "Upper middle income" | "High income" | "Unknown";
 
 export interface GeoMention {
@@ -20,6 +20,7 @@ export interface GeoMention {
   coordinateSource: CoordinateSource;
   locationRole: LocationRole;
   evidenceText?: string;
+  normalizedPlaceName?: string;
 }
 
 export interface StudyAreaExtractionResult {
@@ -30,6 +31,7 @@ export interface StudyAreaExtractionResult {
   locationRole: LocationRole;
   confidence: number;
   evidenceText?: string;
+  normalizedPlaceName?: string;
 }
 
 export interface Paper {
@@ -46,6 +48,10 @@ export interface Paper {
   abstract: string | null;
   url: string | null;
   citedByCount?: number;
+  primaryTopic?: string | null;
+  studyAreaCountries?: string[];
+  studyAreaRegions?: string[];
+  studyAreaCities?: string[];
   source: PaperSource;
   geoMention?: GeoMention;
 }
@@ -144,6 +150,7 @@ export interface ChartData {
   energyOutcomes: CountValue[];
   methods: CountValue[];
   countries: CountValue[];
+  cities: CountValue[];
   regions: CountValue[];
   climateZones: CountValue[];
   incomeGroups: CountValue[];
@@ -192,4 +199,5 @@ export interface OpenAlexWork {
   abstract_inverted_index?: Record<string, number[]> | null;
   cited_by_count?: number;
   landing_page_url?: string | null;
+  primary_topic?: unknown;
 }
