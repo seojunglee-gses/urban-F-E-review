@@ -1,3 +1,4 @@
+import { enrichCodesWithResolvedLocation } from "../geo/resolveStudyLocation";
 import type { CodedPaper, Paper } from "../../types/review";
 import type { LLMClassification, NormalizedAbstractRecord } from "../../types/literature";
 
@@ -103,17 +104,18 @@ export const codedPapersToCsv = (codedPapers: CodedPaper[], papers: Paper[]): st
   ];
   const rows = codedPapers.map((codedPaper) => {
     const paper = paperById.get(codedPaper.paperId);
+    const resolved = enrichCodesWithResolvedLocation(codedPaper.codes).resolvedLocation;
     return [
       codedPaper.paperId,
       paper?.title ?? "",
       paper?.year ?? "",
       paper?.doi ?? "",
-      codedPaper.codes.country,
+      resolved.country ?? resolved.region ?? codedPaper.codes.country,
       codedPaper.codes.urbanFormVariables.join("; "),
       codedPaper.codes.energyOutcomes.join("; "),
       codedPaper.codes.method,
       codedPaper.codes.spatialScale,
-      codedPaper.codes.climateContext,
+      resolved.climateContext ?? codedPaper.codes.climateContext,
       codedPaper.codes.buildingType,
       codedPaper.codes.keyFinding,
       codedPaper.codes.evidenceStrength,

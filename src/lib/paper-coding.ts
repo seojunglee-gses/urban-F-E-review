@@ -1,3 +1,4 @@
+import { enrichCodesWithResolvedLocation } from "./geo/resolveStudyLocation";
 import type { CodedPaper, EvidenceStrength, Paper, ReviewCodebook } from "../types/review";
 
 const includesAny = (text: string, terms: string[]): boolean => terms.some((term) => text.includes(term));
@@ -64,7 +65,7 @@ export const codePaperDeterministically = (paper: Paper, codebook: ReviewCodeboo
     paperId: paper.id,
     include,
     exclusionReason: include ? null : missingAbstract ? "Missing abstract" : "Urban form and energy relationship is unclear in abstract",
-    codes: {
+    codes: enrichCodesWithResolvedLocation({
       urbanFormVariables,
       energyOutcomes,
       method,
@@ -75,7 +76,7 @@ export const codePaperDeterministically = (paper: Paper, codebook: ReviewCodeboo
       buildingType: includesAny(text, ["residential"]) ? "residential" : includesAny(text, ["office", "commercial"]) ? "commercial" : "unclear",
       keyFinding: codebook ? "coded using generated codebook" : "coded using deterministic fallback rules",
       evidenceStrength,
-    },
+    }),
     confidence,
     needsManualReview: missingAbstract || confidence < 0.6,
   };

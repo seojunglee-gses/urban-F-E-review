@@ -1,4 +1,5 @@
 import { isValidStudyAreaCity } from "./geo/locationDisplay";
+import { enrichCodesWithResolvedLocation, type ResolvedStudyLocation } from "./geo/resolveStudyLocation";
 import { findStudyAreaCoordinate } from "./geo/studyAreaCoordinates";
 import { regionForCountry } from "./geo/worldRegions";
 import type { CodedPaper, GeoMention, MapDataItem, Paper } from "../types/review";
@@ -16,25 +17,21 @@ const sanitizeMentionForDisplay = (mention: GeoMention & { lat: number; lon: num
   return { ...mention, city, country, region };
 };
 
-const COUNTRY_CENTROIDS: Record<string, { lat: number; lon: number }> = {
-  Australia: { lat: -25.27, lon: 133.78 },
-  Brazil: { lat: -14.24, lon: -51.93 },
-  Canada: { lat: 56.13, lon: -106.35 },
-  China: { lat: 35.86, lon: 104.2 },
-  France: { lat: 46.23, lon: 2.21 },
-  Germany: { lat: 51.17, lon: 10.45 },
-  India: { lat: 20.59, lon: 78.96 },
-  Italy: { lat: 41.87, lon: 12.57 },
-  Japan: { lat: 36.2, lon: 138.25 },
-  Netherlands: { lat: 52.13, lon: 5.29 },
-  Singapore: { lat: 1.35, lon: 103.82 },
-  "South Africa": { lat: -30.56, lon: 22.94 },
-  "Korea, Rep.": { lat: 35.91, lon: 127.77 },
-  "South Korea": { lat: 35.91, lon: 127.77 },
-  Spain: { lat: 40.46, lon: -3.75 },
-  Sweden: { lat: 60.13, lon: 18.64 },
-  "United Kingdom": { lat: 55.38, lon: -3.44 },
-  "United States": { lat: 37.09, lon: -95.71 },
+const mentionFromResolvedLocation = (resolved: ResolvedStudyLocation | undefined): (GeoMention & { lat: number; lon: number }) | undefined => {
+  if (!resolved || typeof resolved.latitude !== "number" || typeof resolved.longitude !== "number") return undefined;
+  return {
+    city: resolved.city ?? undefined,
+    country: resolved.country ?? undefined,
+    region: resolved.region ?? undefined,
+    lat: resolved.latitude,
+    lon: resolved.longitude,
+    climateZone: resolved.climateContext ?? undefined,
+    incomeGroup: resolved.incomeGroup as GeoMention["incomeGroup"],
+    confidence: resolved.confidence,
+    source: "manual",
+    coordinateSource: "worldcities",
+    locationRole: resolved.city ? "study_area" : resolved.country ? "country_only" : resolved.region ? "region_only" : "unknown",
+  };
 };
 
 const mentionForMap = (mention: GeoMention | undefined): (GeoMention & { lat: number; lon: number }) | undefined => {
@@ -58,8 +55,7 @@ const mentionForMap = (mention: GeoMention | undefined): (GeoMention & { lat: nu
       };
     }
   }
-  const centroid = mention.country ? COUNTRY_CENTROIDS[mention.country] : undefined;
-  return centroid ? { ...mention, ...centroid, coordinateSource: "country_centroid" } : undefined;
+  return undefined;
 };
 
 export const buildMapData = (papers: Paper[], codedPapers: CodedPaper[]): MapDataItem[] => {
@@ -67,11 +63,12 @@ export const buildMapData = (papers: Paper[], codedPapers: CodedPaper[]): MapDat
   const grouped = new Map<string, { mention: GeoMention & { lat: number; lon: number }; paperIds: string[]; included: number; confidence: number; topics: string[]; evidenceTexts: string[] }>();
 
   papers.forEach((paper) => {
-    const mappedMention = mentionForMap(paper.geoMention);
+    const coded = codedByPaper.get(paper.id);
+    const resolvedMention = coded ? mentionFromResolvedLocation(enrichCodesWithResolvedLocation(coded.codes).resolvedLocation) : undefined;
+    const mappedMention = resolvedMention ?? mentionForMap(paper.geoMention);
     const mention = mappedMention ? sanitizeMentionForDisplay(mappedMention, paper) : undefined;
     if (!mention || mention.locationRole === "unknown") return;
     const key = locationKey(mention);
-    const coded = codedByPaper.get(paper.id);
     const current = grouped.get(key) ?? { mention, paperIds: [], included: 0, confidence: 0, topics: [], evidenceTexts: [] };
     current.paperIds.push(paper.id);
     if (coded?.include) current.included += 1;
