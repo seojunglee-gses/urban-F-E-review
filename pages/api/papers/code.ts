@@ -17,9 +17,10 @@ const geoMentionSchema = z.object({
   incomeGroup: z.enum(["Low income", "Lower middle income", "Upper middle income", "High income", "Unknown"]).optional(),
   confidence: z.number(),
   source: z.enum(["llm", "title", "abstract", "geocoder", "manual", "unknown"]),
-  coordinateSource: z.enum(["geocoding_api", "map_library", "none"]),
+  coordinateSource: z.enum(["geocoding_api", "map_library", "worldcities", "country_centroid", "none"]),
   locationRole: z.enum(["study_area", "country_only", "region_only", "unknown"]),
   evidenceText: z.string().optional(),
+  normalizedPlaceName: z.string().optional(),
 });
 
 const paperSchema = z.object({
