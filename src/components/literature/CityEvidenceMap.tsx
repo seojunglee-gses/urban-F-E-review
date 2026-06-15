@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
 
+import { WORLD_LAND_RINGS, worldRingToSvgPath } from "../../lib/geo/worldMapSvg";
 import type { MapDataItem, Paper } from "../../types/review";
 import { descriptionText, innerPanel, majorCard, titleText } from "./dashboardShared";
 
@@ -67,15 +68,9 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           <rect width="1000" height="500" fill="#dbeafe" />
           {[125, 250, 375].map((y) => <line key={y} x1="0" x2="1000" y1={y} y2={y} stroke="#bfdbfe" strokeDasharray="6 8" strokeWidth="1" />)}
           {[125, 250, 375, 500, 625, 750, 875].map((x) => <line key={x} x1={x} x2={x} y1="0" y2="500" stroke="#bfdbfe" strokeDasharray="6 8" strokeWidth="1" />)}
-          <path d="M42 124 C72 104 97 96 129 99 C154 72 203 61 241 74 C278 86 296 111 326 120 C348 130 359 150 351 170 C340 194 312 199 288 199 C270 207 265 229 245 239 C221 251 194 240 180 218 C163 207 141 207 121 196 C96 184 78 166 57 159 C37 154 27 139 42 124 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M303 38 C333 20 383 22 408 45 C433 67 425 99 390 111 C361 122 321 112 300 91 C282 72 282 51 303 38 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M275 255 C303 251 329 273 333 306 C345 328 365 345 357 377 C350 407 326 425 314 456 C298 437 281 411 270 383 C260 355 242 334 247 305 C251 281 258 264 275 255 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M430 139 C455 119 492 111 521 120 C543 127 552 147 536 160 C518 173 484 166 461 177 C443 185 419 174 410 158 C404 148 413 143 430 139 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M493 184 C524 174 559 188 575 219 C592 250 584 288 565 319 C548 348 534 382 506 375 C482 369 469 333 463 303 C457 272 438 248 449 218 C457 198 472 190 493 184 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M535 131 C579 107 646 88 704 101 C756 112 800 123 852 137 C901 151 935 184 946 220 C919 233 876 228 842 252 C808 276 768 259 733 282 C702 303 671 282 645 254 C623 230 581 230 561 206 C543 184 559 160 535 131 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M685 260 C711 256 727 276 719 301 C708 316 687 311 677 292 C668 277 671 266 685 260 Z M748 272 C764 270 783 280 786 296 C769 304 751 298 742 285 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M766 345 C803 325 861 331 895 365 C873 401 827 421 780 407 C748 397 737 365 766 345 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
-          <path d="M438 116 C448 108 463 111 470 121 C457 129 445 128 438 116 Z M483 132 C493 128 507 130 515 139 C504 147 489 144 483 132 Z M617 296 C629 289 647 291 657 302 C646 313 627 310 617 296 Z M231 222 C243 217 256 222 262 235 C248 241 235 237 231 222 Z" fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          {WORLD_LAND_RINGS.map((ring, index) => (
+            <path key={index} d={worldRingToSvgPath(ring)} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="2" />
+          ))}
         </svg>
         {mapData.length > 0 ? (
           mapData.map((item) => {
