@@ -90,9 +90,10 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const [activeLocationKey, setActiveLocationKey] = useState<string | null>(null);
   const [activeRegion, setActiveRegion] = useState<string | null>(null);
   const maximum = maxCount(mapData);
+  const mappedPaperIds = useMemo(() => new Set(mapData.flatMap((item) => item.papers)), [mapData]);
   const countryOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "country_only");
   const regionOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "region_only");
-  const studyAreasMissingCoordinates = countBy(papers, (paper) => paper.geoMention?.locationRole === "study_area" && paper.geoMention.coordinateSource === "none");
+  const studyAreasMissingCoordinates = countBy(papers, (paper) => paper.geoMention?.locationRole === "study_area" && paper.geoMention.coordinateSource === "none" && !mappedPaperIds.has(paper.id));
   const unknownStudyAreaCount = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
   // Keep the removed unmapped-paper review panel disabled even if a stale JSX branch is present during deployment merges.
   const fullyUnmappedPapers: Paper[] = [];
