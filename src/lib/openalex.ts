@@ -58,7 +58,7 @@ const getPrimaryTopic = (work: OpenAlexWork): string | null => {
 
 const hasUsableAbstract = (paper: Paper): boolean => Boolean(paper.abstract?.trim());
 
-export const OPENALEX_REVIEW_MAX_RESULTS = 1000;
+export const OPENALEX_REVIEW_MAX_RESULTS = 1500;
 export const OPENALEX_MAX_CURSOR_PAGE_SIZE = 200;
 
 const RETRYABLE_OPENALEX_STATUSES = new Set([429, 500, 502, 503, 504]);

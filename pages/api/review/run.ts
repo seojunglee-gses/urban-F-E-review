@@ -198,19 +198,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     errors.push(`Paper coding failed: ${error instanceof Error ? error.message : "Unknown coding error"}`);
   }
 
-  const chartData = buildChartData(papers, codedPapers, openAlexTopics);
-  status.summary = "success";
-  res.status(200).json({
-    query,
-    researchQuestion,
-    status,
-    papers,
-    codebook,
-    codedPapers,
-    evidenceSummary: buildEvidenceSummary(papers, codedPapers),
-    gapMap: buildGapMap(codedPapers, chartData),
-    mapData: buildMapData(papers, codedPapers),
-    chartData,
-    errors,
-  });
+  try {
+    const chartData = buildChartData(papers, codedPapers, openAlexTopics);
+    status.summary = "success";
+    res.status(200).json({
+      query,
+      researchQuestion,
+      status,
+      papers,
+      codebook,
+      codedPapers,
+      evidenceSummary: buildEvidenceSummary(papers, codedPapers),
+      gapMap: buildGapMap(codedPapers, chartData),
+      mapData: buildMapData(papers, codedPapers),
+      chartData,
+      errors,
+    });
+  } catch (error) {
+    status.summary = "failed";
+    errors.push(`Evidence summary failed: ${error instanceof Error ? error.message : "Unknown summary error"}`);
+    res.status(200).json({
+      query,
+      researchQuestion,
+      status,
+      papers,
+      codebook,
+      codedPapers,
+      evidenceSummary: buildEvidenceSummary(papers, []),
+      gapMap: [],
+      mapData: [],
+      chartData: buildChartData(papers, [], openAlexTopics),
+      errors,
+    });
+  }
 }
