@@ -99,6 +99,27 @@ const fetchOpenAlexJson = async (url: URL, label: string, maxAttempts = 4): Prom
   throw new Error(`${label} failed with status ${lastStatus} after ${maxAttempts} attempts${detail}`);
 };
 
+const OPENALEX_PAGE_SIZE_FALLBACKS = [200, 100, 50, 25] as const;
+
+const getPageSizeFallbacks = (requestedPageSize: number): number[] =>
+  Array.from(new Set([
+    ...OPENALEX_PAGE_SIZE_FALLBACKS.filter((pageSize) => pageSize <= requestedPageSize),
+    requestedPageSize,
+  ])).sort((a, b) => b - a);
+
+const fetchOpenAlexPageJson = async (url: URL, requestedPageSize: number, label: string): Promise<Record<string, unknown>> => {
+  let lastError: unknown;
+  for (const pageSize of getPageSizeFallbacks(requestedPageSize)) {
+    url.searchParams.set("per-page", String(pageSize));
+    try {
+      return asRecord(await fetchOpenAlexJson(url, `${label} (per-page ${pageSize})`));
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError instanceof Error ? lastError : new Error(`${label} failed after trying smaller OpenAlex page sizes.`);
+};
+
 const getTopicGroups = (payload: unknown): CountValue[] =>
   asArray(asRecord(payload).group_by)
     .map((item) => {
@@ -179,7 +200,8 @@ export const searchOpenAlexWorks = async ({
   while (papers.length < limit) {
     const url = new URL("https://api.openalex.org/works");
     url.searchParams.set("search", query);
-    url.searchParams.set("per-page", String(Math.min(perPage, limit - papers.length)));
+    const requestedPageSize = Math.min(perPage, limit - papers.length);
+    url.searchParams.set("per-page", String(requestedPageSize));
     url.searchParams.set("cursor", cursor);
     url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
     const mailto = process.env.OPENALEX_MAILTO;
@@ -187,7 +209,7 @@ export const searchOpenAlexWorks = async ({
 
     let payload: Record<string, unknown>;
     try {
-      payload = asRecord(await fetchOpenAlexJson(url, "OpenAlex works request"));
+      payload = await fetchOpenAlexPageJson(url, requestedPageSize, "OpenAlex works request");
     } catch (error) {
       if (papers.length > 0) break;
       throw error;
