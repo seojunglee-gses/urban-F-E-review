@@ -1,25 +1,21 @@
 import { useState } from "react";
 
 import type { ReviewRunResponse } from "../../types/review";
-import { CodebookView } from "./CodebookView";
 import { EvidenceChartsPanel } from "./EvidenceChartsPanel";
 import { EvidenceMatrix } from "./EvidenceMatrix";
 import { ExportPanel } from "./ExportPanel";
 import { majorCard, primaryButton, secondaryButton } from "./dashboardShared";
 import { RecordsTable } from "./RecordsTable";
-import { ResearchGapsPanel } from "./ResearchGapsPanel";
 
 interface WorkbenchTabsProps {
   result: ReviewRunResponse | null;
 }
 
-type TabId = "overview" | "matrix" | "codebook" | "gaps" | "records" | "exports";
+type TabId = "overview" | "matrix" | "records" | "exports";
 
 const tabs: Array<{ id: TabId; label: string }> = [
   { id: "overview", label: "Overview" },
   { id: "matrix", label: "Evidence Matrix" },
-  { id: "codebook", label: "Codebook" },
-  { id: "gaps", label: "Research Gaps" },
   { id: "records", label: "Evidence Table" },
   { id: "exports", label: "Exports" },
 ];
@@ -29,8 +25,6 @@ export const WorkbenchTabs = ({ result }: WorkbenchTabsProps) => {
   const renderTab = () => {
     if (active === "overview") return <EvidenceChartsPanel chartData={result?.chartData ?? null} />;
     if (active === "matrix") return <EvidenceMatrix codedPapers={result?.codedPapers ?? []} />;
-    if (active === "codebook") return <CodebookView codebook={result?.codebook ?? null} llmSkipped={result?.status.codebook === "skipped" && Boolean(result?.papers.length)} />;
-    if (active === "gaps") return <ResearchGapsPanel gaps={result?.gapMap ?? []} />;
     if (active === "records") return <RecordsTable papers={result?.papers ?? []} codedPapers={result?.codedPapers ?? []} />;
     return <ExportPanel result={result} />;
   };
