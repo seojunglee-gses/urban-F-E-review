@@ -29,7 +29,14 @@ export const REVIEW_PROGRESS_LABELS = [
 const defaultQuery = "urban form and building energy consumption";
 
 const parseResponse = async (response: Response): Promise<ReviewRunResponse> => {
-  const payload = (await response.json()) as unknown;
+  const raw = await response.text();
+  let payload: unknown;
+  try {
+    payload = raw ? (JSON.parse(raw) as unknown) : null;
+  } catch {
+    const message = raw.trim() || "Review pipeline returned a non-JSON response.";
+    throw new Error(message.length > 300 ? `${message.slice(0, 300)}…` : message);
+  }
   if (!response.ok) {
     const message = typeof payload === "object" && payload !== null && "error" in payload ? String((payload as { error: unknown }).error) : "Review pipeline failed.";
     throw new Error(message);
@@ -42,6 +49,7 @@ export const useReviewPipeline = () => {
   const [result, setResult] = useState<ReviewRunResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeProgressIndex, setActiveProgressIndex] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -64,14 +72,16 @@ export const useReviewPipeline = () => {
 
   const runReview = useCallback(async () => {
     setIsRunning(true);
+    setActiveProgressIndex(0);
     setError(null);
     try {
       const response = await fetch("/api/review/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query, researchQuestion: query }),
+        body: JSON.stringify({ query, researchQuestion: query, maxResults: 1500 }),
       });
       const review = await parseResponse(response);
+      setActiveProgressIndex(REVIEW_PROGRESS_LABELS.length - 1);
       setResult(review);
       if (review.errors.length > 0) setError(review.errors[0]);
     } catch (runError) {
@@ -88,9 +98,20 @@ export const useReviewPipeline = () => {
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  useEffect(() => {
+    if (!isRunning) return;
+    const timer = window.setInterval(() => {
+      setActiveProgressIndex((current) => Math.min(current + 1, REVIEW_PROGRESS_LABELS.length - 2));
+    }, 1400);
+    return () => window.clearInterval(timer);
+  }, [isRunning]);
+
   const progressSteps: ReviewProgressStep[] = useMemo(() => {
     if (isRunning) {
-      return REVIEW_PROGRESS_LABELS.map((label, index) => ({ label, status: index === REVIEW_PROGRESS_LABELS.length - 1 ? "idle" : "running" }));
+      return REVIEW_PROGRESS_LABELS.map((label, index) => ({
+        label,
+        status: index < activeProgressIndex ? "complete" : index === activeProgressIndex ? "running" : "idle",
+      }));
     }
     if (!result) return REVIEW_PROGRESS_LABELS.map((label) => ({ label, status: "idle" }));
     return REVIEW_PROGRESS_LABELS.map((label, index) => {
@@ -107,7 +128,7 @@ export const useReviewPipeline = () => {
       if (skipped) return { label, status: "idle" };
       return { label, status: index <= 5 ? "complete" : "idle" };
     });
-  }, [isRunning, result]);
+  }, [activeProgressIndex, isRunning, result]);
 
   return {
     query,
