@@ -1,4 +1,5 @@
 import { isValidStudyAreaCity } from "./geo/locationDisplay";
+import { findStudyAreaCoordinate } from "./geo/studyAreaCoordinates";
 import { regionForCountry } from "./geo/worldRegions";
 import type { CodedPaper, GeoMention, MapDataItem, Paper } from "../types/review";
 
@@ -38,8 +39,27 @@ const COUNTRY_CENTROIDS: Record<string, { lat: number; lon: number }> = {
 
 const mentionForMap = (mention: GeoMention | undefined): (GeoMention & { lat: number; lon: number }) | undefined => {
   if (hasCoordinates(mention)) return mention;
-  const centroid = mention?.country ? COUNTRY_CENTROIDS[mention.country] : undefined;
-  return mention && centroid ? { ...mention, ...centroid, coordinateSource: "map_library" } : undefined;
+  if (!mention) return undefined;
+  if (mention.locationRole === "study_area") {
+    const coordinate = findStudyAreaCoordinate({
+      city: mention.city,
+      country: mention.country,
+      studyArea: mention.city ?? mention.evidenceText,
+      normalizedPlaceName: mention.normalizedPlaceName ?? [mention.city, mention.country].filter(Boolean).join(", "),
+    });
+    if (coordinate) {
+      return {
+        ...mention,
+        city: mention.city ?? coordinate.city ?? coordinate.name,
+        country: mention.country ?? coordinate.country,
+        lat: coordinate.lat,
+        lon: coordinate.lon,
+        coordinateSource: "worldcities",
+      };
+    }
+  }
+  const centroid = mention.country ? COUNTRY_CENTROIDS[mention.country] : undefined;
+  return centroid ? { ...mention, ...centroid, coordinateSource: "country_centroid" } : undefined;
 };
 
 export const buildMapData = (papers: Paper[], codedPapers: CodedPaper[]): MapDataItem[] => {
