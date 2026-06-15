@@ -93,7 +93,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const countryOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "country_only");
   const regionOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "region_only");
   const studyAreasMissingCoordinates = countBy(papers, (paper) => paper.geoMention?.locationRole === "study_area" && paper.geoMention.coordinateSource === "none");
-  const unmapped = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
+  const unknownStudyAreaCount = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
   const studyAreas = topStudyAreas(papers);
   const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
   const regionOnlyEvidence = regionOnlyCounts(papers, mapData);
@@ -193,7 +193,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Country-only</p><p className="mt-1 text-xl font-semibold text-slate-900">{countryOnly}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Region-only</p><p className="mt-1 text-xl font-semibold text-slate-900">{regionOnly}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Study areas missing coordinates</p><p className="mt-1 text-xl font-semibold text-slate-900">{studyAreasMissingCoordinates}</p></div>
-        <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Unmapped</p><p className="mt-1 text-xl font-semibold text-slate-900">{unmapped}</p></div>
+        <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Unmapped</p><p className="mt-1 text-xl font-semibold text-slate-900">{unknownStudyAreaCount}</p></div>
       </div>
       {fullyUnmappedPapers.length ? (
         <div className={`${innerPanel} mt-4`}>
