@@ -1,3 +1,5 @@
+import { isValidStudyAreaCity } from "./geo/locationDisplay";
+import { regionForCountry } from "./geo/worldRegions";
 import type { CodedPaper, GeoMention, MapDataItem, Paper } from "../types/review";
 
 const hasCoordinates = (mention: GeoMention | undefined): mention is GeoMention & { lat: number; lon: number } =>
@@ -6,18 +8,10 @@ const hasCoordinates = (mention: GeoMention | undefined): mention is GeoMention 
 const locationKey = (mention: GeoMention & { lat: number; lon: number }): string =>
   [mention.city, mention.country, mention.region].filter(Boolean).join(", ") || `${mention.lat},${mention.lon}`;
 
-const invalidCityTerms = /\b(?:compared|similar|scenario|model|study|analysis|energy|building|urban|climate|canadian|american|chinese|european)\b/i;
-
-const isValidDisplayCity = (city?: string): boolean =>
-  Boolean(city?.trim()) &&
-  city!.trim().length <= 45 &&
-  /^[A-Z][A-Za-zÀ-ÖØ-öø-ÿ .'-]+$/.test(city!.trim()) &&
-  !invalidCityTerms.test(city!);
-
 const sanitizeMentionForDisplay = (mention: GeoMention & { lat: number; lon: number }, paper: Paper): GeoMention & { lat: number; lon: number } => {
-  const city = isValidDisplayCity(mention.city) ? mention.city?.trim() : undefined;
+  const city = isValidStudyAreaCity(mention.city) ? mention.city?.trim() : undefined;
   const country = mention.country ?? paper.studyAreaCountries?.[0];
-  const region = mention.region ?? paper.studyAreaRegions?.[0];
+  const region = mention.region ?? paper.studyAreaRegions?.[0] ?? regionForCountry(country);
   return { ...mention, city, country, region };
 };
 

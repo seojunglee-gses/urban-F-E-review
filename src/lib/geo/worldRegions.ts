@@ -11,7 +11,7 @@ export const WORLD_REGION_GROUPS = [
 
 export type WorldRegionGroup = (typeof WORLD_REGION_GROUPS)[number];
 
-const COUNTRY_REGION_FALLBACKS: Record<string, WorldRegionGroup> = {
+export const COUNTRY_REGION_FALLBACKS: Record<string, WorldRegionGroup> = {
   Australia: "East Asia & Pacific",
   Brazil: "Latin America & the Caribbean",
   Canada: "Europe & Central Asia",
@@ -84,3 +84,5 @@ export const enrichWorldRegions = async (countries: string[]): Promise<Map<strin
   }
   return resolved;
 };
+
+export const regionForCountry = (country?: string): WorldRegionGroup | undefined => country ? COUNTRY_REGION_FALLBACKS[country] : undefined;

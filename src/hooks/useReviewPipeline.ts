@@ -49,6 +49,7 @@ export const useReviewPipeline = () => {
   const [result, setResult] = useState<ReviewRunResponse | null>(null);
   const [isRunning, setIsRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [activeProgressIndex, setActiveProgressIndex] = useState(0);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -71,6 +72,7 @@ export const useReviewPipeline = () => {
 
   const runReview = useCallback(async () => {
     setIsRunning(true);
+    setActiveProgressIndex(0);
     setError(null);
     try {
       const response = await fetch("/api/review/run", {
@@ -79,6 +81,7 @@ export const useReviewPipeline = () => {
         body: JSON.stringify({ query, researchQuestion: query, maxResults: 1000 }),
       });
       const review = await parseResponse(response);
+      setActiveProgressIndex(REVIEW_PROGRESS_LABELS.length - 1);
       setResult(review);
       if (review.errors.length > 0) setError(review.errors[0]);
     } catch (runError) {
@@ -95,9 +98,20 @@ export const useReviewPipeline = () => {
     if (typeof window !== "undefined") window.localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  useEffect(() => {
+    if (!isRunning) return;
+    const timer = window.setInterval(() => {
+      setActiveProgressIndex((current) => Math.min(current + 1, REVIEW_PROGRESS_LABELS.length - 2));
+    }, 1400);
+    return () => window.clearInterval(timer);
+  }, [isRunning]);
+
   const progressSteps: ReviewProgressStep[] = useMemo(() => {
     if (isRunning) {
-      return REVIEW_PROGRESS_LABELS.map((label, index) => ({ label, status: index === REVIEW_PROGRESS_LABELS.length - 1 ? "idle" : "running" }));
+      return REVIEW_PROGRESS_LABELS.map((label, index) => ({
+        label,
+        status: index < activeProgressIndex ? "complete" : index === activeProgressIndex ? "running" : "idle",
+      }));
     }
     if (!result) return REVIEW_PROGRESS_LABELS.map((label) => ({ label, status: "idle" }));
     return REVIEW_PROGRESS_LABELS.map((label, index) => {
@@ -114,7 +128,7 @@ export const useReviewPipeline = () => {
       if (skipped) return { label, status: "idle" };
       return { label, status: index <= 5 ? "complete" : "idle" };
     });
-  }, [isRunning, result]);
+  }, [activeProgressIndex, isRunning, result]);
 
   return {
     query,

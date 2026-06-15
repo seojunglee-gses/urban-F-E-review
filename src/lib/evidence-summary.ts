@@ -1,4 +1,5 @@
 import { incomeGroupDisplayOrder } from "./geo/incomeGroups";
+import { isValidStudyAreaCity } from "./geo/locationDisplay";
 import type { ChartData, CodedPaper, CountValue, EvidenceSummary, GapMapItem, Paper } from "../types/review";
 
 const increment = (counts: Record<string, number>, key: string | undefined): void => {
@@ -31,7 +32,8 @@ export const buildChartData = (papers: Paper[], codedPapers: CodedPaper[], openA
     increment(locationRoleCounts, paper.geoMention?.locationRole ?? "unknown");
     const countries = paper.studyAreaCountries?.length ? paper.studyAreaCountries : paper.geoMention?.country ? [paper.geoMention.country] : [];
     const regions = paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
-    const cities = paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
+    const candidateCities = paper.studyAreaCities?.length ? paper.studyAreaCities : paper.geoMention?.city ? [paper.geoMention.city] : [];
+    const cities = candidateCities.filter(isValidStudyAreaCity);
     (countries.length ? countries : [paper.geoMention?.locationRole === "unknown" ? "No study-area country" : undefined]).forEach((country) => increment(countryCounts, country));
     (regions.length ? regions : [undefined]).forEach((region) => increment(regionCounts, region));
     cities.forEach((city) => increment(cityCounts, city));
