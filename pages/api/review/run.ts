@@ -12,7 +12,7 @@ import type { CodedPaper, CountValue, Paper, ReviewCodebook, ReviewRunResponse, 
 const reviewRunSchema = z.object({
   query: z.string().trim().min(2, "Enter a research topic or question."),
   researchQuestion: z.string().trim().optional(),
-  maxResults: z.number().int().min(1).max(200).optional().default(50),
+  maxResults: z.number().int().min(1).max(1500).optional().default(1500),
 });
 
 const defaultStatus = (): ReviewRunStatus => ({
@@ -45,7 +45,13 @@ const deriveKeywords = (query: string): string[] =>
     .filter((term) => term.length > 3)
     .slice(0, 12);
 
+const LLM_CODING_LIMIT = 50;
+
 const codePapers = async (papers: Paper[], codebook: ReviewCodebook, errors: string[]): Promise<CodedPaper[]> => {
+  if (papers.length > LLM_CODING_LIMIT) {
+    errors.push(`Large result set detected (${papers.length} papers). To avoid request timeouts, all papers were coded with the deterministic fallback; narrow the query for per-paper LLM coding.`);
+    return papers.map((paper) => codePaperDeterministically(paper, codebook));
+  }
   const coded: CodedPaper[] = [];
   for (const paper of papers) {
     try {
@@ -86,15 +92,16 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       getOpenAlexTopicGroups({ query }),
     ]);
     if (paperResults.status === "rejected") throw paperResults.reason;
-    papers = paperResults.value;
+    papers = paperResults.value.filter((paper) => Boolean(paper.abstract?.trim()));
     if (topicResults.status === "fulfilled") {
       openAlexTopics = topicResults.value;
     } else {
       errors.push(`OpenAlex topic grouping unavailable: ${topicResults.reason instanceof Error ? topicResults.reason.message : "Unknown grouping error"}`);
     }
+    openAlexTopics = buildChartData(papers, [], openAlexTopics).openAlexTopics;
     status.search = "success";
     if (papers.length === 0) {
-      errors.push("OpenAlex returned no papers for this query. Try a broader topic or fewer Boolean operators.");
+      errors.push("OpenAlex returned no article records with usable abstracts for this query. Try a broader topic or fewer Boolean operators.");
       status.summary = "success";
       res.status(200).json({
         query,

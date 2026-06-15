@@ -170,3 +170,5 @@ export const getIncomeGroupForCountryWithLlmFallback = async (country?: string):
 };
 
 export const incomeGroupDisplayOrder = (): IncomeGroup[] => DISPLAY_INCOME_GROUPS;
+
+export const incomeGroupCountryNames = (): string[] => typedRows.map((row) => row.country);
