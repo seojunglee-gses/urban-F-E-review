@@ -97,7 +97,6 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const studyAreas = topStudyAreas(papers);
   const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
   const regionOnlyEvidence = regionOnlyCounts(papers, mapData);
-  const fullyUnmappedPapers = papers.filter((paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown").slice(0, 5);
   const displayMapData = useMemo(() => offsetMarkers(mapData), [mapData]);
 
   return (
