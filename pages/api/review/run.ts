@@ -5,14 +5,14 @@ import { samplePapersForCodebook } from "../../../src/lib/codebook";
 import { buildChartData, buildEvidenceSummary, buildGapMap } from "../../../src/lib/evidence-summary";
 import { generateCodebookWithLlm, codePaperWithLlm } from "../../../src/lib/llm";
 import { buildMapData } from "../../../src/lib/map-data";
-import { getOpenAlexTopicGroups, searchOpenAlexWorks } from "../../../src/lib/openalex";
+import { getOpenAlexTopicGroups, OPENALEX_REVIEW_MAX_RESULTS, searchOpenAlexWorks } from "../../../src/lib/openalex";
 import { codePaperDeterministically } from "../../../src/lib/paper-coding";
 import type { CodedPaper, CountValue, Paper, ReviewCodebook, ReviewRunResponse, ReviewRunStatus } from "../../../src/types/review";
 
 const reviewRunSchema = z.object({
   query: z.string().trim().min(2, "Enter a research topic or question."),
   researchQuestion: z.string().trim().optional(),
-  maxResults: z.number().int().min(1).max(1500).optional().default(1500),
+  maxResults: z.number().int().min(1).max(OPENALEX_REVIEW_MAX_RESULTS).optional().default(OPENALEX_REVIEW_MAX_RESULTS),
 });
 
 const defaultStatus = (): ReviewRunStatus => ({
@@ -35,6 +35,21 @@ const emptyResponse = ({ query, researchQuestion, status, errors, openAlexTopics
   chartData: buildChartData([], [], openAlexTopics),
   errors,
 });
+
+
+const formatOpenAlexSearchError = (error: unknown): string => {
+  const message = error instanceof Error ? error.message : "OpenAlex search failed.";
+  if (/status 503/.test(message)) {
+    return "OpenAlex is temporarily unavailable or overloaded (503 Service Unavailable). Please wait a few minutes and retry the same search; if it keeps happening, narrow the query or try again later.";
+  }
+  if (/status 500/.test(message)) {
+    return "OpenAlex returned a temporary server error (500). Please retry; if it repeats, narrow the query or try again later.";
+  }
+  if (/status 429/.test(message)) {
+    return "OpenAlex rate-limited the request (429). Please wait before retrying.";
+  }
+  return message;
+};
 
 const deriveKeywords = (query: string): string[] =>
   query
@@ -120,7 +135,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     }
   } catch (error) {
     status.search = "failed";
-    errors.push(error instanceof Error ? error.message : "OpenAlex search failed.");
+    errors.push(formatOpenAlexSearchError(error));
     res.status(200).json(emptyResponse({ query, researchQuestion, status, errors }));
     return;
   }
@@ -183,19 +198,37 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     errors.push(`Paper coding failed: ${error instanceof Error ? error.message : "Unknown coding error"}`);
   }
 
-  const chartData = buildChartData(papers, codedPapers, openAlexTopics);
-  status.summary = "success";
-  res.status(200).json({
-    query,
-    researchQuestion,
-    status,
-    papers,
-    codebook,
-    codedPapers,
-    evidenceSummary: buildEvidenceSummary(papers, codedPapers),
-    gapMap: buildGapMap(codedPapers, chartData),
-    mapData: buildMapData(papers, codedPapers),
-    chartData,
-    errors,
-  });
+  try {
+    const chartData = buildChartData(papers, codedPapers, openAlexTopics);
+    status.summary = "success";
+    res.status(200).json({
+      query,
+      researchQuestion,
+      status,
+      papers,
+      codebook,
+      codedPapers,
+      evidenceSummary: buildEvidenceSummary(papers, codedPapers),
+      gapMap: buildGapMap(codedPapers, chartData),
+      mapData: buildMapData(papers, codedPapers),
+      chartData,
+      errors,
+    });
+  } catch (error) {
+    status.summary = "failed";
+    errors.push(`Evidence summary failed: ${error instanceof Error ? error.message : "Unknown summary error"}`);
+    res.status(200).json({
+      query,
+      researchQuestion,
+      status,
+      papers,
+      codebook,
+      codedPapers,
+      evidenceSummary: buildEvidenceSummary(papers, []),
+      gapMap: [],
+      mapData: [],
+      chartData: buildChartData(papers, [], openAlexTopics),
+      errors,
+    });
+  }
 }
