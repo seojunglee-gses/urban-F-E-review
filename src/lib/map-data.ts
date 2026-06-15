@@ -6,6 +6,21 @@ const hasCoordinates = (mention: GeoMention | undefined): mention is GeoMention 
 const locationKey = (mention: GeoMention & { lat: number; lon: number }): string =>
   [mention.city, mention.country, mention.region].filter(Boolean).join(", ") || `${mention.lat},${mention.lon}`;
 
+const invalidCityTerms = /\b(?:compared|similar|scenario|model|study|analysis|energy|building|urban|climate|canadian|american|chinese|european)\b/i;
+
+const isValidDisplayCity = (city?: string): boolean =>
+  Boolean(city?.trim()) &&
+  city!.trim().length <= 45 &&
+  /^[A-Z][A-Za-zÀ-ÖØ-öø-ÿ .'-]+$/.test(city!.trim()) &&
+  !invalidCityTerms.test(city!);
+
+const sanitizeMentionForDisplay = (mention: GeoMention & { lat: number; lon: number }, paper: Paper): GeoMention & { lat: number; lon: number } => {
+  const city = isValidDisplayCity(mention.city) ? mention.city?.trim() : undefined;
+  const country = mention.country ?? paper.studyAreaCountries?.[0];
+  const region = mention.region ?? paper.studyAreaRegions?.[0];
+  return { ...mention, city, country, region };
+};
+
 const COUNTRY_CENTROIDS: Record<string, { lat: number; lon: number }> = {
   Australia: { lat: -25.27, lon: 133.78 },
   Brazil: { lat: -14.24, lon: -51.93 },
@@ -38,7 +53,8 @@ export const buildMapData = (papers: Paper[], codedPapers: CodedPaper[]): MapDat
   const grouped = new Map<string, { mention: GeoMention & { lat: number; lon: number }; paperIds: string[]; included: number; confidence: number; topics: string[]; evidenceTexts: string[] }>();
 
   papers.forEach((paper) => {
-    const mention = mentionForMap(paper.geoMention);
+    const mappedMention = mentionForMap(paper.geoMention);
+    const mention = mappedMention ? sanitizeMentionForDisplay(mappedMention, paper) : undefined;
     if (!mention || mention.locationRole === "unknown") return;
     const key = locationKey(mention);
     const coded = codedByPaper.get(paper.id);

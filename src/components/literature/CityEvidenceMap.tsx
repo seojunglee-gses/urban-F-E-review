@@ -1,4 +1,5 @@
-import { MapPin } from "lucide-react";
+import { useMemo, useState } from "react";
+import { MapPin, X } from "lucide-react";
 
 import { WORLD_LAND_RINGS, worldRingToSvgPath } from "../../lib/geo/worldMapSvg";
 import type { MapDataItem, Paper } from "../../types/review";
@@ -45,7 +46,47 @@ const topStudyAreas = (papers: Paper[]): Array<{ name: string; count: number }> 
     .slice(0, 6);
 };
 
+const regionCounts = (papers: Paper[], mapData: MapDataItem[]): Array<{ name: string; count: number }> => {
+  const counts = new Map<string, Set<string>>();
+  papers.forEach((paper) => {
+    const regions = paper.studyAreaRegions?.length ? paper.studyAreaRegions : paper.geoMention?.region ? [paper.geoMention.region] : [];
+    regions.forEach((region) => {
+      if (!counts.has(region)) counts.set(region, new Set());
+      counts.get(region)!.add(paper.id);
+    });
+  });
+  mapData.forEach((item) => {
+    const region = item.region;
+    if (!region) return;
+    if (!counts.has(region)) counts.set(region, new Set());
+    item.papers.forEach((paperId) => counts.get(region)!.add(paperId));
+  });
+  return Array.from(counts.entries())
+    .map(([name, paperIds]) => ({ name, count: paperIds.size }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .slice(0, 8);
+};
+
+const offsetMarkers = (items: MapDataItem[]): Array<MapDataItem & { renderLat: number; renderLon: number }> => {
+  const countryHasCity = new Set(items.filter((item) => item.city && item.country).map((item) => item.country));
+  const coordinateBuckets = new Map<string, number>();
+  return items.map((item) => {
+    const coordinateKey = `${item.lat.toFixed(1)}:${item.lon.toFixed(1)}`;
+    const bucketIndex = coordinateBuckets.get(coordinateKey) ?? 0;
+    coordinateBuckets.set(coordinateKey, bucketIndex + 1);
+    const sameCountryCityOffset = !item.city && item.country && countryHasCity.has(item.country) ? 1 : 0;
+    const angle = (bucketIndex * 137.5 * Math.PI) / 180;
+    const radius = bucketIndex === 0 && !sameCountryCityOffset ? 0 : 2.2 + bucketIndex * 0.8 + sameCountryCityOffset;
+    return {
+      ...item,
+      renderLat: Math.max(-82, Math.min(84, item.lat + Math.sin(angle) * radius + sameCountryCityOffset * 1.6)),
+      renderLon: Math.max(-178, Math.min(178, item.lon + Math.cos(angle) * radius + sameCountryCityOffset * 1.6)),
+    };
+  });
+};
+
 export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
+  const [activeLocationKey, setActiveLocationKey] = useState<string | null>(null);
   const maximum = maxCount(mapData);
   const countryOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "country_only");
   const regionOnly = countBy(papers, (paper) => paper.geoMention?.locationRole === "region_only");
@@ -53,6 +94,9 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const unmapped = countBy(papers, (paper) => !paper.geoMention || paper.geoMention.locationRole === "unknown");
   const studyAreas = topStudyAreas(papers);
   const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
+  const evidenceByRegion = regionCounts(papers, mapData);
+  const maxRegion = Math.max(1, ...evidenceByRegion.map((region) => region.count));
+  const displayMapData = useMemo(() => offsetMarkers(mapData), [mapData]);
 
   return (
     <section className={`${majorCard} overflow-hidden`}>
@@ -63,7 +107,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         </div>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{mapData.length} mapped study areas/countries</span>
       </div>
-      <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[#dbeafe]">
+      <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[#dbeafe]" onClick={() => setActiveLocationKey(null)}>
         <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 1000 500">
           <rect width="1000" height="500" fill="#dbeafe" />
           {[125, 250, 375].map((y) => <line key={y} x1="0" x2="1000" y1={y} y2={y} stroke="#bfdbfe" strokeDasharray="6 8" strokeWidth="1" />)}
@@ -73,15 +117,23 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           ))}
         </svg>
         {mapData.length > 0 ? (
-          mapData.map((item) => {
+          displayMapData.map((item) => {
             const size = 18 + (item.paperCount / maximum) * 34;
+            const active = activeLocationKey === item.locationKey;
             return (
-              <div key={item.locationKey} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.lon)}%`, top: `${projectLat(item.lat)}%` }}>
-                <div className="flex items-center justify-center rounded-full border border-white/80 bg-[var(--primary)]/80 text-[10px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-[var(--primary)]/10" style={{ width: size, height: size }}>{item.paperCount}</div>
-                <div className="pointer-events-none absolute left-1/2 top-full z-10 mt-2 hidden w-64 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl group-hover:block">
-                  <p className="font-semibold text-slate-900">{item.country ?? item.locationKey}</p>
-                  {item.city || item.region ? <p className="mt-1 text-slate-500">{[item.city, item.region].filter(Boolean).join(", ")}</p> : null}
-                  <p className="mt-1 text-slate-500">{item.paperCount} papers · avg confidence {Math.round(item.averageConfidence * 100)}%</p>
+              <div key={item.locationKey} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.renderLon)}%`, top: `${projectLat(item.renderLat)}%` }} onClick={(event) => { event.stopPropagation(); setActiveLocationKey(item.locationKey); }}>
+                <button aria-label={`Open details for ${item.locationKey}`} className="flex items-center justify-center rounded-full border border-white/80 bg-[var(--primary)]/80 text-[10px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-[var(--primary)]/10" style={{ width: size, height: size }} type="button">{item.paperCount}</button>
+                <div className={`${active ? "block" : "hidden group-hover:block"} absolute left-1/2 top-full z-10 mt-2 w-72 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl`} onClick={(event) => event.stopPropagation()}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="space-y-1 text-slate-600">
+                      {item.country ? <p><span className="font-semibold text-slate-900">Country:</span> {item.country}</p> : null}
+                      {item.region ? <p><span className="font-semibold text-slate-900">Region:</span> {item.region}</p> : null}
+                      {item.city ? <p><span className="font-semibold text-slate-900">City:</span> {item.city}</p> : null}
+                      <p><span className="font-semibold text-slate-900">Papers:</span> {item.paperCount}</p>
+                    </div>
+                    {active ? <button aria-label="Close location details" className="rounded-full p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600" type="button" onClick={() => setActiveLocationKey(null)}><X className="h-3.5 w-3.5" /></button> : null}
+                  </div>
+                  <p className="mt-2 text-slate-500">Avg confidence {Math.round(item.averageConfidence * 100)}%</p>
                   <p className="mt-2 text-slate-600">Climate: {item.climateZone ?? "Unknown climate zone"} · Income: {item.incomeGroup ?? "Unknown income group"}</p>
                   <p className="mt-2 text-slate-600">Top topics: {item.topTopics.length ? item.topTopics.join(", ") : "pending coding"}</p>
                   {item.evidenceTexts[0] ? <p className="mt-2 text-slate-500">Evidence: {item.evidenceTexts[0]}</p> : null}
@@ -102,6 +154,21 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Region-only</p><p className="mt-1 text-xl font-semibold text-slate-900">{regionOnly}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Not geocoded</p><p className="mt-1 text-xl font-semibold text-slate-900">{notGeocoded}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Unmapped</p><p className="mt-1 text-xl font-semibold text-slate-900">{unmapped}</p></div>
+      </div>
+      <div className={`${innerPanel} mt-4`}>
+        <p className="text-sm font-semibold text-slate-800">Evidence by region</p>
+        {evidenceByRegion.length ? (
+          <div className="mt-3 space-y-2">
+            {evidenceByRegion.map((region) => (
+              <div key={region.name}>
+                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{region.name}</span><span>{region.count} papers</span></div>
+                <div className="mt-1 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-[var(--primary)]/70" style={{ width: `${(region.count / maxRegion) * 100}%` }} /></div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className={`${descriptionText} mt-2`}>Region-level evidence appears after study-area countries or regions are extracted.</p>
+        )}
       </div>
       <div className={`${innerPanel} mt-4`}>
         <p className="text-sm font-semibold text-slate-800">Extracted study-area locations</p>
