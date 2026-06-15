@@ -92,7 +92,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
       getOpenAlexTopicGroups({ query }),
     ]);
     if (paperResults.status === "rejected") throw paperResults.reason;
-    papers = paperResults.value;
+    papers = paperResults.value.filter((paper) => Boolean(paper.abstract?.trim()));
     if (topicResults.status === "fulfilled") {
       openAlexTopics = topicResults.value;
     } else {
@@ -101,7 +101,7 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse<
     openAlexTopics = buildChartData(papers, [], openAlexTopics).openAlexTopics;
     status.search = "success";
     if (papers.length === 0) {
-      errors.push("OpenAlex returned no papers for this query. Try a broader topic or fewer Boolean operators.");
+      errors.push("OpenAlex returned no article records with usable abstracts for this query. Try a broader topic or fewer Boolean operators.");
       status.summary = "success";
       res.status(200).json({
         query,

@@ -56,6 +56,8 @@ const getPrimaryTopic = (work: OpenAlexWork): string | null => {
   return asString(topic.display_name) || asString(topic.name) || null;
 };
 
+const hasUsableAbstract = (paper: Paper): boolean => Boolean(paper.abstract?.trim());
+
 const getTopicGroups = (payload: unknown): CountValue[] =>
   asArray(asRecord(payload).group_by)
     .map((item) => {
@@ -148,7 +150,7 @@ export const searchOpenAlexWorks = async ({
       throw new Error(`OpenAlex request failed with status ${response.status}`);
     }
     const payload = asRecord((await response.json()) as unknown);
-    papers.push(...asArray(payload.results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork)));
+    papers.push(...asArray(payload.results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork)).filter(hasUsableAbstract));
     const nextCursor = asString(asRecord(payload.meta).next_cursor);
     if (!nextCursor || nextCursor === cursor || asArray(payload.results).length === 0) break;
     cursor = nextCursor;
