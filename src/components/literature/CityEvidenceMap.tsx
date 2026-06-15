@@ -195,6 +195,15 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Study areas missing coordinates</p><p className="mt-1 text-xl font-semibold text-slate-900">{studyAreasMissingCoordinates}</p></div>
         <div className={innerPanel}><p className="text-xs font-semibold text-slate-500">Unmapped</p><p className="mt-1 text-xl font-semibold text-slate-900">{unmapped}</p></div>
       </div>
+      {fullyUnmappedPapers.length ? (
+        <div className={`${innerPanel} mt-4`}>
+          <p className="text-sm font-semibold text-slate-800">Needs review: unmapped papers</p>
+          <p className={`${descriptionText} mt-1`}>These records are not shown on the map because no study-area city, country, or region was validated.</p>
+          <ul className="mt-3 space-y-2 text-xs text-slate-600">
+            {fullyUnmappedPapers.map((paper) => <li key={paper.id} className="line-clamp-2 rounded-xl bg-white px-3 py-2">{paper.title}</li>)}
+          </ul>
+        </div>
+      ) : null}
       <div className={`${innerPanel} mt-4`}>
         <p className="text-sm font-semibold text-slate-800">Extracted study-area locations</p>
         {studyAreas.length ? (
