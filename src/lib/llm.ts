@@ -70,7 +70,7 @@ export const generateCodebookWithLlm = async ({
       {
         role: "system",
         content:
-          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping, including study-area country and income group. Income group must be populated by the application lookup, not guessed by the model.",
+          "Return strict JSON for a systematic review codebook with researchQuestion, inclusionCriteria, exclusionCriteria, variables, extractionRules, codingInstructions, qualityChecks. Variables must support urban form and energy evidence mapping, including study-area city, country, and income group. For location extraction, instruct coders to output city and country names in English, use reference-style place names when clear, include normalizedPlaceName as \"City, Country\" when possible, never generate latitude/longitude, and never force vague regions, metropolitan areas, or ambiguous places into a city. Income group must be populated by the application lookup, not guessed by the model.",
       },
       {
         role: "user",
@@ -93,7 +93,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       {
         role: "system",
         content:
-          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries. Do not guess income group; it is assigned only by application lookup from the study-area country.",
+          "Code one paper using the codebook. Return JSON with paperId, include, exclusionReason, codes {urbanFormVariables, energyOutcomes, method, spatialScale, climateContext, studyLocation, country, buildingType, keyFinding, evidenceStrength}, confidence, needsManualReview. Use unclear for missing details and do not hallucinate. For geography, use only study-area evidence in title/abstract; ignore author affiliations, institutions, publisher locations, and OpenAlex metadata countries. Output city and country names in English and use the closest reference-style city/country names when the study area clearly corresponds to a city. Use normalizedPlaceName in \"City, Country\" form when possible. Do not generate latitude or longitude, and do not force regions, metropolitan areas, vague places, or ambiguous locations into a city. Do not guess income group; it is assigned only by application lookup from the study-area country.",
       },
       { role: "user", content: JSON.stringify({ paper: { id: paper.id, title: paper.title, abstract: paper.abstract, year: paper.year, concepts: paper.concepts, geoMention: paper.geoMention }, codebook }) },
     ],
@@ -110,7 +110,7 @@ export const codePaperWithLlm = async (paper: Paper, codebook: ReviewCodebook): 
       energyOutcomes: asStringArray(codes.energyOutcomes),
       method: String(codes.method ?? "unclear"),
       spatialScale: String(codes.spatialScale ?? "unclear"),
-      climateContext: String(codes.climateContext ?? "unclear"),
+      climateContext: paper.geoMention?.climateZone ?? String(codes.climateContext ?? "unclear"),
       studyLocation: String(codes.studyLocation ?? "unclear"),
       country: String(codes.country ?? paper.geoMention?.country ?? "unclear"),
       buildingType: String(codes.buildingType ?? "unclear"),
