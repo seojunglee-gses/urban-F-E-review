@@ -58,6 +58,47 @@ const getPrimaryTopic = (work: OpenAlexWork): string | null => {
 
 const hasUsableAbstract = (paper: Paper): boolean => Boolean(paper.abstract?.trim());
 
+
+const RETRYABLE_OPENALEX_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+
+const retryDelayMs = (response: Response, attempt: number): number => {
+  const retryAfter = response.headers.get("retry-after");
+  const retryAfterSeconds = retryAfter ? Number(retryAfter) : NaN;
+  if (Number.isFinite(retryAfterSeconds) && retryAfterSeconds > 0) return Math.min(retryAfterSeconds * 1000, 8000);
+  return Math.min(750 * 2 ** attempt, 6000);
+};
+
+const readErrorSnippet = async (response: Response): Promise<string> => {
+  try {
+    const text = await response.text();
+    return text.trim().slice(0, 180);
+  } catch {
+    return "";
+  }
+};
+
+const fetchOpenAlexJson = async (url: URL, label: string, maxAttempts = 4): Promise<unknown> => {
+  let lastStatus = 0;
+  let lastSnippet = "";
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    if (response.ok) return response.json() as Promise<unknown>;
+    lastStatus = response.status;
+    const retryable = RETRYABLE_OPENALEX_STATUSES.has(response.status);
+    if (!retryable || attempt === maxAttempts - 1) {
+      lastSnippet = await readErrorSnippet(response);
+      break;
+    }
+    await sleep(retryDelayMs(response, attempt));
+  }
+  const detail = lastSnippet ? `: ${lastSnippet}` : ".";
+  throw new Error(`${label} failed with status ${lastStatus} after ${maxAttempts} attempts${detail}`);
+};
+
 const getTopicGroups = (payload: unknown): CountValue[] =>
   asArray(asRecord(payload).group_by)
     .map((item) => {
@@ -143,13 +184,13 @@ export const searchOpenAlexWorks = async ({
     const mailto = process.env.OPENALEX_MAILTO;
     if (mailto) url.searchParams.set("mailto", mailto);
 
-    const response = await fetch(url.toString(), {
-      headers: { Accept: "application/json" },
-    });
-    if (!response.ok) {
-      throw new Error(`OpenAlex request failed with status ${response.status}`);
+    let payload: Record<string, unknown>;
+    try {
+      payload = asRecord(await fetchOpenAlexJson(url, "OpenAlex works request"));
+    } catch (error) {
+      if (papers.length > 0) break;
+      throw error;
     }
-    const payload = asRecord((await response.json()) as unknown);
     papers.push(...asArray(payload.results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork)).filter(hasUsableAbstract));
     const nextCursor = asString(asRecord(payload.meta).next_cursor);
     if (!nextCursor || nextCursor === cursor || asArray(payload.results).length === 0) break;
@@ -170,11 +211,5 @@ export const getOpenAlexTopicGroups = async ({
   const mailto = process.env.OPENALEX_MAILTO;
   if (mailto) url.searchParams.set("mailto", mailto);
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`OpenAlex topic grouping failed with status ${response.status}`);
-  }
-  return getTopicGroups((await response.json()) as unknown);
+  return getTopicGroups(await fetchOpenAlexJson(url, "OpenAlex topic grouping"));
 };
