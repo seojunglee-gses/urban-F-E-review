@@ -14,7 +14,7 @@ export interface RegionOverlayShape {
   labelLat: number;
 }
 
-// Region-only overlays reuse the same equirectangular coordinate system and base land paths
+// Regional overlays reuse the same equirectangular coordinate system and base land paths
 // as the world map. Each bounds entry clips the existing land geometry instead of drawing
 // separate abstract blobs that can drift away from the basemap.
 export const REGION_OVERLAY_SHAPES: RegionOverlayShape[] = [
@@ -32,6 +32,18 @@ export const REGION_OVERLAY_SHAPES: RegionOverlayShape[] = [
     bounds: [{ lonMin: -12, lonMax: 92, latMin: 34, latMax: 75 }],
     labelLon: 46,
     labelLat: 53,
+  },
+  {
+    name: "Europe",
+    bounds: [{ lonMin: -12, lonMax: 35, latMin: 34, latMax: 72 }],
+    labelLon: 14,
+    labelLat: 52,
+  },
+  {
+    name: "North America",
+    bounds: [{ lonMin: -170, lonMax: -50, latMin: 24, latMax: 72 }],
+    labelLon: -102,
+    labelLat: 49,
   },
   {
     name: "Latin America & the Caribbean",

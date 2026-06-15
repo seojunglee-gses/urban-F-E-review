@@ -3,6 +3,8 @@ import OpenAI from "openai";
 export const WORLD_REGION_GROUPS = [
   "East Asia & Pacific",
   "Europe & Central Asia",
+  "Europe",
+  "North America",
   "Latin America & the Caribbean",
   "Middle East & North Africa",
   "South Asia",
@@ -14,7 +16,8 @@ export type WorldRegionGroup = (typeof WORLD_REGION_GROUPS)[number];
 export const COUNTRY_REGION_FALLBACKS: Record<string, WorldRegionGroup> = {
   Australia: "East Asia & Pacific",
   Brazil: "Latin America & the Caribbean",
-  Canada: "Europe & Central Asia",
+  Bermuda: "North America",
+  Canada: "North America",
   China: "East Asia & Pacific",
   France: "Europe & Central Asia",
   Germany: "Europe & Central Asia",
@@ -34,7 +37,7 @@ export const COUNTRY_REGION_FALLBACKS: Record<string, WorldRegionGroup> = {
   Türkiye: "Europe & Central Asia",
   "United Arab Emirates": "Middle East & North Africa",
   "United Kingdom": "Europe & Central Asia",
-  "United States": "Europe & Central Asia",
+  "United States": "North America",
 };
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -68,7 +71,7 @@ export const enrichWorldRegions = async (countries: string[]): Promise<Map<strin
         {
           role: "system",
           content:
-            'Classify each country into exactly one allowed World Bank-style region. Return JSON {"items":[{"country":"...","region":"East Asia & Pacific|Europe & Central Asia|Latin America & the Caribbean|Middle East & North Africa|South Asia|Sub-Saharan Africa"}]}. No explanations.',
+            'Classify each country into exactly one allowed review region. Return JSON {"items":[{"country":"...","region":"East Asia & Pacific|Europe & Central Asia|Europe|North America|Latin America & the Caribbean|Middle East & North Africa|South Asia|Sub-Saharan Africa"}]}. No explanations.',
         },
         { role: "user", content: JSON.stringify({ countries: unresolved }) },
       ],

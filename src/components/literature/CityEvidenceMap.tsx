@@ -54,16 +54,20 @@ const topStudyAreas = (papers: Paper[]): Array<{ name: string; count: number }> 
     .slice(0, 6);
 };
 
-const regionOnlyCounts = (papers: Paper[], exactMapData: MapDataItem[]): Array<{ name: string; count: number; papers: string[] }> => {
-  const mappedPaperIds = new Set(exactMapData.flatMap((item) => item.papers));
+const regionEvidenceCounts = (papers: Paper[]): Array<{ name: string; count: number; papers: string[] }> => {
   const counts = new Map<string, Set<string>>();
-  papers.forEach((paper) => {
-    if (mappedPaperIds.has(paper.id)) return;
-    if (paper.geoMention?.coordinateSource !== "none") return;
-    const region = paper.geoMention?.region ?? paper.studyAreaRegions?.find(isKnownLocationValue) ?? regionForCountry(paper.geoMention?.country ?? paper.studyAreaCountries?.[0]);
+  const add = (region: string | undefined, paperId: string) => {
     if (!isKnownLocationValue(region)) return;
     if (!counts.has(region)) counts.set(region, new Set());
-    counts.get(region)!.add(paper.id);
+    counts.get(region)!.add(paperId);
+  };
+  papers.forEach((paper) => {
+    const regions = paper.studyAreaRegions?.filter(isKnownLocationValue) ?? [];
+    if (regions.length) {
+      regions.forEach((region) => add(region, paper.id));
+      return;
+    }
+    add(paper.geoMention?.region ?? regionForCountry(paper.geoMention?.country ?? paper.studyAreaCountries?.[0]), paper.id);
   });
   return Array.from(counts.entries()).map(([name, ids]) => ({ name, count: ids.size, papers: Array.from(ids) }));
 };
@@ -99,7 +103,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
   const fullyUnmappedPapers: Paper[] = [];
   const studyAreas = topStudyAreas(papers);
   const maxStudyArea = Math.max(1, ...studyAreas.map((area) => area.count));
-  const regionOnlyEvidence = regionOnlyCounts(papers, mapData);
+  const regionEvidence = regionEvidenceCounts(papers);
   const displayMapData = useMemo(() => offsetMarkers(mapData), [mapData]);
 
   return (
@@ -111,7 +115,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
         </div>
         <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-500">{mapData.length} exact mapped markers</span>
       </div>
-      <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-full bg-[var(--primary)]/10 px-3 py-1 text-[var(--primary)]">Exact city/country markers</span><span className="rounded-full bg-teal-500/15 px-3 py-1 text-teal-800">Region-only evidence overlay</span></div>
+      <div className="mb-3 flex flex-wrap gap-2 text-xs font-semibold"><span className="rounded-full bg-[var(--primary)]/10 px-3 py-1 text-[var(--primary)]">Exact city/country markers</span><span className="rounded-full bg-teal-500/15 px-3 py-1 text-teal-800">Regional evidence overlay</span></div>
       <div className="relative min-h-[480px] overflow-hidden rounded-3xl border border-slate-200 bg-[#dbeafe]" onClick={() => { setActiveLocationKey(null); setActiveRegion(null); }}>
         <svg aria-hidden className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 1000 500">
           <rect width="1000" height="500" fill="#dbeafe" />
@@ -132,7 +136,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
             )}
           </defs>
           {REGION_OVERLAY_SHAPES.map((shape) => {
-            const region = regionOnlyEvidence.find((item) => item.name === shape.name);
+            const region = regionEvidence.find((item) => item.name === shape.name);
             if (!region) return null;
             return (
               <g key={shape.name} pointerEvents="none">
@@ -147,15 +151,15 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
             );
           })}
         </svg>
-        {regionOnlyEvidence.map((region) => {
+        {regionEvidence.map((region) => {
           const shape = REGION_OVERLAY_SHAPES.find((item) => item.name === region.name);
           if (!shape) return null;
           const active = activeRegion === region.name;
           return (
-            <button aria-label={`Open region-only evidence for ${region.name}`} key={region.name} className="absolute z-20 flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-teal-700/50 bg-teal-600/85 text-[11px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-teal-500/10 backdrop-blur-sm" style={{ left: `${projectLon(shape.labelLon)}%`, top: `${projectLat(shape.labelLat)}%` }} type="button" onClick={(event) => { event.stopPropagation(); setActiveLocationKey(null); setActiveRegion(region.name); }}>
+            <button aria-label={`Open regional evidence for ${region.name}`} key={region.name} className={`${active ? "z-[80]" : "z-40"} absolute flex h-8 w-8 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border border-teal-700/50 bg-teal-600/85 text-[11px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-teal-500/10 backdrop-blur-sm`} style={{ left: `${projectLon(shape.labelLon)}%`, top: `${projectLat(shape.labelLat)}%` }} type="button" onClick={(event) => { event.stopPropagation(); setActiveLocationKey(null); setActiveRegion(region.name); }}>
               {region.count}
-              <div className={`${active ? "block" : "hidden"} pointer-events-auto absolute left-1/2 top-full z-[90] mt-2 w-64 -translate-x-1/2 rounded-2xl border border-teal-200 bg-white p-3 text-left text-xs font-medium text-slate-600 shadow-2xl`}>
-                <div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-slate-900">Region-only evidence</p><p className="mt-1"><span className="font-semibold">Region:</span> {region.name}</p><p><span className="font-semibold">Papers:</span> {region.count}</p></div><span className="text-slate-400">×</span></div>
+              <div className={`${active ? "block" : "hidden"} pointer-events-auto absolute left-1/2 top-full z-[120] mt-2 w-64 -translate-x-1/2 rounded-2xl border border-teal-200 bg-white p-3 text-left text-xs font-medium text-slate-600 shadow-2xl`}>
+                <div className="flex items-start justify-between gap-2"><div><p className="font-semibold text-slate-900">Regional evidence</p><p className="mt-1"><span className="font-semibold">Region:</span> {region.name}</p><p><span className="font-semibold">Papers:</span> {region.count}</p></div><span className="text-slate-400">×</span></div>
               </div>
             </button>
           );
@@ -167,7 +171,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
             return (
               <div key={item.locationKey} className="group absolute z-30 -translate-x-1/2 -translate-y-1/2" style={{ left: `${projectLon(item.renderLon)}%`, top: `${projectLat(item.renderLat)}%` }} onClick={(event) => { event.stopPropagation(); setActiveLocationKey(item.locationKey); }}>
                 <button aria-label={`Open details for ${item.locationKey}`} className="flex items-center justify-center rounded-full border border-white/80 bg-[var(--primary)]/80 text-[10px] font-bold text-white shadow-lg shadow-slate-400/30 ring-4 ring-[var(--primary)]/10" style={{ width: size, height: size }} type="button">{item.paperCount}</button>
-                <div className={`${active ? "block" : "hidden group-hover:block"} absolute left-1/2 top-full z-[90] mt-2 w-72 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl`} onClick={(event) => event.stopPropagation()}>
+                <div className={`${active ? "block" : "hidden group-hover:block"} absolute left-1/2 top-full z-[120] mt-2 w-72 -translate-x-1/2 rounded-2xl border border-slate-200 bg-white p-3 text-xs shadow-xl`} onClick={(event) => event.stopPropagation()}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="space-y-1 text-slate-600">
                       {item.country ? <p><span className="font-semibold text-slate-900">Country:</span> {item.country}</p> : null}
@@ -184,7 +188,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
               </div>
             );
           })
-        ) : regionOnlyEvidence.length === 0 ? (
+        ) : regionEvidence.length === 0 ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-8 text-center">
             <div className="rounded-full border border-slate-200 bg-white p-4 shadow-sm"><MapPin className="h-7 w-7 text-slate-400" /></div>
             <h3 className="mt-4 text-base font-semibold text-slate-900">No geocoded study-area markers yet.</h3>
