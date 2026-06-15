@@ -135,7 +135,7 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
                   </div>
                   <p className="mt-2 text-slate-500">Avg confidence {Math.round(item.averageConfidence * 100)}%</p>
                   <p className="mt-2 text-slate-600">Climate: {item.climateZone ?? "Unknown climate zone"} · Income: {item.incomeGroup ?? "Unknown income group"}</p>
-                  <p className="mt-2 text-slate-600">Top topics: {item.topTopics.length ? item.topTopics.join(", ") : "pending coding"}</p>
+                  <p className="mt-2 text-slate-600">Top OpenAlex primary topics: {item.topTopics.length ? item.topTopics.join(", ") : "No primary topic metadata"}</p>
                   {item.evidenceTexts[0] ? <p className="mt-2 text-slate-500">Evidence: {item.evidenceTexts[0]}</p> : null}
                 </div>
               </div>

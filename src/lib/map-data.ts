@@ -62,7 +62,7 @@ export const buildMapData = (papers: Paper[], codedPapers: CodedPaper[]): MapDat
     current.paperIds.push(paper.id);
     if (coded?.include) current.included += 1;
     current.confidence += mention.confidence;
-    current.topics.push(...(coded?.codes.urbanFormVariables ?? []));
+    if (paper.primaryTopic) current.topics.push(paper.primaryTopic);
     if (mention.evidenceText) current.evidenceTexts.push(mention.evidenceText);
     grouped.set(key, current);
   });
