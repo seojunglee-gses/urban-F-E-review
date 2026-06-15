@@ -65,34 +65,83 @@ const toCoordinate = (record: RawCoordinateRecord): StudyAreaCoordinate | undefi
   };
 };
 
-const loadCoordinates = (): StudyAreaCoordinate[] => {
-  if (!existsSync(DATA_PATH)) return [];
+interface CoordinateIndex {
+  byCountryAndCity: Map<string, StudyAreaCoordinate[]>;
+  byCountryAndCityAscii: Map<string, StudyAreaCoordinate[]>;
+  byCountryAndName: Map<string, StudyAreaCoordinate[]>;
+  byPlace: Map<string, StudyAreaCoordinate[]>;
+}
+
+const addToIndex = (index: Map<string, StudyAreaCoordinate[]>, key: string, record: StudyAreaCoordinate): void => {
+  if (!key) return;
+  const records = index.get(key) ?? [];
+  records.push(record);
+  index.set(key, records);
+};
+
+const countryKeys = (record: StudyAreaCoordinate): string[] =>
+  [record.country, record.iso2, record.iso3].map((value) => normalizeText(value)).filter(Boolean);
+
+const countryPlaceKey = (country: string, place: string): string => `${country}|||${place}`;
+
+const addCountryPlaceIndexes = (
+  index: CoordinateIndex,
+  record: StudyAreaCoordinate,
+  field: "city" | "cityAscii" | "name",
+  target: Map<string, StudyAreaCoordinate[]>,
+): void => {
+  const place = normalizeText(record[field]);
+  if (!place) return;
+  countryKeys(record).forEach((country) => addToIndex(target, countryPlaceKey(country, place), record));
+};
+
+const createEmptyIndex = (): CoordinateIndex => ({
+  byCountryAndCity: new Map(),
+  byCountryAndCityAscii: new Map(),
+  byCountryAndName: new Map(),
+  byPlace: new Map(),
+});
+
+const buildCoordinateIndex = (records: StudyAreaCoordinate[]): CoordinateIndex => {
+  const index = createEmptyIndex();
+  records.forEach((record) => {
+    addCountryPlaceIndexes(index, record, "city", index.byCountryAndCity);
+    addCountryPlaceIndexes(index, record, "cityAscii", index.byCountryAndCityAscii);
+    addCountryPlaceIndexes(index, record, "name", index.byCountryAndName);
+    [record.city, record.cityAscii, record.name]
+      .map((value) => normalizeText(value))
+      .filter(Boolean)
+      .forEach((place) => addToIndex(index.byPlace, place, record));
+  });
+  return index;
+};
+
+const loadCoordinateIndex = (): CoordinateIndex => {
+  if (!existsSync(DATA_PATH)) return createEmptyIndex();
   try {
     const raw = JSON.parse(readFileSync(DATA_PATH, "utf8")) as unknown;
-    if (!Array.isArray(raw)) return [];
-    return raw.map((record) => toCoordinate(record as RawCoordinateRecord)).filter((record): record is StudyAreaCoordinate => Boolean(record));
+    if (!Array.isArray(raw)) return createEmptyIndex();
+    return buildCoordinateIndex(raw.map((record) => toCoordinate(record as RawCoordinateRecord)).filter((record): record is StudyAreaCoordinate => Boolean(record)));
   } catch {
-    return [];
+    return createEmptyIndex();
   }
 };
 
-const coordinates = loadCoordinates();
+let coordinateIndex: CoordinateIndex | undefined;
 
-const countryMatches = (record: StudyAreaCoordinate, country?: string | null): boolean => {
-  const normalizedCountry = normalizeText(country);
-  if (!normalizedCountry) return false;
-  return [record.country, record.iso2, record.iso3].some((value) => normalizeText(value) === normalizedCountry);
+const getCoordinateIndex = (): CoordinateIndex => {
+  coordinateIndex ??= loadCoordinateIndex();
+  return coordinateIndex;
 };
 
-const valueMatches = (candidate: string | null | undefined, value: string | null | undefined): boolean =>
-  Boolean(isUsablePlace(candidate) && isUsablePlace(value) && normalizeText(candidate) === normalizeText(value));
-
 const chooseLargestPopulation = (matches: StudyAreaCoordinate[]): StudyAreaCoordinate | undefined =>
-  matches.sort((a, b) => (b.population ?? 0) - (a.population ?? 0))[0];
+  [...matches].sort((a, b) => (b.population ?? 0) - (a.population ?? 0))[0];
 
 const matchWithCountry = (field: "city" | "cityAscii" | "name", place?: string | null, country?: string | null): StudyAreaCoordinate | undefined => {
   if (!isUsablePlace(place) || !isUsablePlace(country)) return undefined;
-  return chooseLargestPopulation(coordinates.filter((record) => countryMatches(record, country) && valueMatches(record[field], place)));
+  const index = getCoordinateIndex();
+  const target = field === "city" ? index.byCountryAndCity : field === "cityAscii" ? index.byCountryAndCityAscii : index.byCountryAndName;
+  return chooseLargestPopulation(target.get(countryPlaceKey(normalizeText(country), normalizeText(place))) ?? []);
 };
 
 const parseCityCountry = (value?: string | null): { city?: string; country?: string } => {
@@ -105,7 +154,7 @@ const uniquePlaceOnlyMatch = (place?: string | null): StudyAreaCoordinate | unde
   if (!isUsablePlace(place)) return undefined;
   const normalized = normalizeText(place);
   if (AMBIGUOUS_CITY_ONLY_NAMES.has(normalized)) return undefined;
-  const matches = coordinates.filter((record) => [record.city, record.cityAscii, record.name].some((value) => normalizeText(value) === normalized));
+  const matches = getCoordinateIndex().byPlace.get(normalized) ?? [];
   const countries = new Set(matches.map((match) => normalizeText(match.country)).filter(Boolean));
   if (countries.size !== 1) return undefined;
   return chooseLargestPopulation(matches);
