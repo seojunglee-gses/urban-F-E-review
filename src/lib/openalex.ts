@@ -1,6 +1,8 @@
 import { reconstructAbstract } from "./abstract";
-import { extractStudyAreaMention } from "./geo/extractStudyArea";
+import { enrichClimateContexts } from "./geo/climateContext";
+import { extractStudyAreaCountries, extractStudyAreaMention, splitStudyAreaCities } from "./geo/extractStudyArea";
 import { getIncomeGroupForCountryWithLlmFallback } from "./geo/incomeGroups";
+import { enrichWorldRegions } from "./geo/worldRegions";
 import type { CountValue, OpenAlexWork, Paper } from "../types/review";
 
 const asRecord = (value: unknown): Record<string, unknown> =>
@@ -49,6 +51,13 @@ const getConcepts = (work: OpenAlexWork): string[] =>
     .map((concept) => asString(asRecord(concept).display_name))
     .filter(Boolean);
 
+const getPrimaryTopic = (work: OpenAlexWork): string | null => {
+  const topic = asRecord(work.primary_topic);
+  return asString(topic.display_name) || asString(topic.name) || null;
+};
+
+const hasUsableAbstract = (paper: Paper): boolean => Boolean(paper.abstract?.trim());
+
 const getTopicGroups = (payload: unknown): CountValue[] =>
   asArray(asRecord(payload).group_by)
     .map((item) => {
@@ -62,6 +71,9 @@ const getTopicGroups = (payload: unknown): CountValue[] =>
 export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
   const title = work.title ?? work.display_name ?? "Untitled paper";
   const abstract = reconstructAbstract(work.abstract_inverted_index);
+  const geoMention = extractStudyAreaMention({ title, abstract });
+  const text = `${title}. ${abstract ?? ""}`;
+  const studyAreaCountries = extractStudyAreaCountries(text);
   return {
     id: work.id ?? `openalex-${Math.random().toString(36).slice(2)}`,
     openAlexId: work.id ?? "",
@@ -76,8 +88,11 @@ export const normalizeOpenAlexWork = (work: OpenAlexWork): Paper => {
     abstract,
     url: getUrl(work),
     citedByCount: work.cited_by_count,
+    primaryTopic: getPrimaryTopic(work),
+    studyAreaCountries: studyAreaCountries.length ? studyAreaCountries : geoMention.country ? [geoMention.country] : [],
+    studyAreaCities: splitStudyAreaCities(geoMention.city),
     source: "openalex",
-    geoMention: extractStudyAreaMention({ title, abstract }),
+    geoMention,
   };
 };
 
@@ -98,6 +113,16 @@ const enrichIncomeGroups = async (papers: Paper[]): Promise<Paper[]> =>
     }),
   );
 
+const enrichGeoContext = async (papers: Paper[]): Promise<Paper[]> => {
+  const incomeEnriched = await enrichIncomeGroups(papers);
+  const regions = await enrichWorldRegions(incomeEnriched.flatMap((paper) => paper.studyAreaCountries ?? []));
+  const regionEnriched = incomeEnriched.map((paper) => ({
+    ...paper,
+    studyAreaRegions: Array.from(new Set((paper.studyAreaCountries ?? []).map((country) => regions.get(country) ?? "Unclassified region"))),
+  }));
+  return enrichClimateContexts(regionEnriched);
+};
+
 export const searchOpenAlexWorks = async ({
   query,
   maxResults,
@@ -105,22 +130,32 @@ export const searchOpenAlexWorks = async ({
   query: string;
   maxResults: number;
 }): Promise<Paper[]> => {
-  const url = new URL("https://api.openalex.org/works");
-  url.searchParams.set("search", query);
-  url.searchParams.set("per-page", String(Math.min(Math.max(maxResults, 1), 200)));
-  url.searchParams.set("filter", "has_abstract:true,type:article");
-  const mailto = process.env.OPENALEX_MAILTO;
-  if (mailto) url.searchParams.set("mailto", mailto);
+  const limit = Math.min(Math.max(maxResults, 1), 1000);
+  const perPage = 200;
+  const papers: Paper[] = [];
+  let cursor = "*";
+  while (papers.length < limit) {
+    const url = new URL("https://api.openalex.org/works");
+    url.searchParams.set("search", query);
+    url.searchParams.set("per-page", String(Math.min(perPage, limit - papers.length)));
+    url.searchParams.set("cursor", cursor);
+    url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
+    const mailto = process.env.OPENALEX_MAILTO;
+    if (mailto) url.searchParams.set("mailto", mailto);
 
-  const response = await fetch(url.toString(), {
-    headers: { Accept: "application/json" },
-  });
-  if (!response.ok) {
-    throw new Error(`OpenAlex request failed with status ${response.status}`);
+    const response = await fetch(url.toString(), {
+      headers: { Accept: "application/json" },
+    });
+    if (!response.ok) {
+      throw new Error(`OpenAlex request failed with status ${response.status}`);
+    }
+    const payload = asRecord((await response.json()) as unknown);
+    papers.push(...asArray(payload.results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork)).filter(hasUsableAbstract));
+    const nextCursor = asString(asRecord(payload.meta).next_cursor);
+    if (!nextCursor || nextCursor === cursor || asArray(payload.results).length === 0) break;
+    cursor = nextCursor;
   }
-  const payload = (await response.json()) as unknown;
-  const papers = asArray(asRecord(payload).results).map((work) => normalizeOpenAlexWork(work as OpenAlexWork));
-  return enrichIncomeGroups(papers);
+  return enrichGeoContext(papers);
 };
 
 export const getOpenAlexTopicGroups = async ({
@@ -130,7 +165,7 @@ export const getOpenAlexTopicGroups = async ({
 }): Promise<CountValue[]> => {
   const url = new URL("https://api.openalex.org/works");
   url.searchParams.set("search", query);
-  url.searchParams.set("filter", "has_abstract:true,type:article");
+  url.searchParams.set("filter", "has_abstract:true,type:article,from_publication_date:2010-01-01");
   url.searchParams.set("group_by", "primary_topic.id");
   const mailto = process.env.OPENALEX_MAILTO;
   if (mailto) url.searchParams.set("mailto", mailto);
