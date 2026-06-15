@@ -26,7 +26,7 @@ const mostSpecificStudyArea = (paper: Paper): string | undefined => {
   return city ?? country ?? region;
 };
 
-const studyAreaLabels = (paper: Paper): string[] => {
+const getStudyAreaDisplayLabels = (paper: Paper): string[] => {
   const label = mostSpecificStudyArea(paper);
   if (!label) return [];
   const mention = paper.geoMention;
@@ -39,23 +39,10 @@ const studyAreaLabels = (paper: Paper): string[] => {
     .map((city) => [city, suffix].filter(Boolean).join(", "));
 };
 
-const studyAreaLabels = (paper: Paper): string[] => {
-  const label = studyAreaLabel(paper);
-  if (!label) return [];
-  const mention = paper.geoMention;
-  if (!mention?.city || !/(,|\band\b)/i.test(mention.city)) return [label];
-  const suffix = [mention.country, mention.region].filter(Boolean).join(", ");
-  return mention.city
-    .split(/\s*,\s*|\s+and\s+/i)
-    .map((city) => city.trim())
-    .filter((city) => city.length > 1)
-    .map((city) => [city, suffix].filter(Boolean).join(", "));
-};
-
 const topStudyAreas = (papers: Paper[]): Array<{ name: string; count: number }> => {
   const counts = new Map<string, number>();
   papers.forEach((paper) => {
-    studyAreaLabels(paper).forEach((label) => counts.set(label, (counts.get(label) ?? 0) + 1));
+    getStudyAreaDisplayLabels(paper).forEach((label) => counts.set(label, (counts.get(label) ?? 0) + 1));
   });
   return Array.from(counts.entries())
     .map(([name, count]) => ({ name, count }))
@@ -198,21 +185,6 @@ export const CityEvidenceMap = ({ mapData, papers }: CityEvidenceMapProps) => {
           </ul>
         </div>
       ) : null}
-      <div className={`${innerPanel} mt-4`}>
-        <p className="text-sm font-semibold text-slate-800">Evidence by region</p>
-        {evidenceByRegion.length ? (
-          <div className="mt-3 space-y-2">
-            {evidenceByRegion.map((region) => (
-              <div key={region.name}>
-                <div className="flex justify-between text-xs font-semibold text-slate-600"><span>{region.name}</span><span>{region.count} papers</span></div>
-                <div className="mt-1 h-2 rounded-full bg-white"><div className="h-2 rounded-full bg-[var(--primary)]/70" style={{ width: `${(region.count / maxRegion) * 100}%` }} /></div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p className={`${descriptionText} mt-2`}>Region-level evidence appears after study-area countries or regions are extracted.</p>
-        )}
-      </div>
       <div className={`${innerPanel} mt-4`}>
         <p className="text-sm font-semibold text-slate-800">Extracted study-area locations</p>
         {studyAreas.length ? (
